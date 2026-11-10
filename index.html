@@ -1,0 +1,1188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Daily</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Daily">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F1F3F6">
+<link rel="apple-touch-icon" href="icon.png">
+<link rel="icon" href="icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<script src="https://accounts.google.com/gsi/client" async></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#F1F3F6; --card:#FFFFFF; --ink:#1B2232; --muted:#667089; --line:#DCE0E8; --soft:#ECEFF4;
+  --accent:#2C55C9; --accent-ink:#FFFFFF; --warn:#B4472E; --warn-bg:#FBEDE8; --ok:#2E7D5B; --ok-bg:#E6F4EC;
+  --z2:#23917F; --thr:#D58A1F; --vo2:#BE3A68; --str:#6F55A3; --rest:#8E98AC;
+  --font:"Manrope", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#12161F; --card:#1A2030; --ink:#E8ECF4; --muted:#98A2B8; --line:#2C3448; --soft:#232A3C;
+    --accent:#7C9BFF; --accent-ink:#0E1424; --warn:#FF9C80; --warn-bg:#3A221C; --ok:#7FD3AA; --ok-bg:#16302A;
+    --z2:#3DC1AA; --thr:#F0AE4A; --vo2:#F06A98; --str:#A68BE0; --rest:#7B859B;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#12161F; --card:#1A2030; --ink:#E8ECF4; --muted:#98A2B8; --line:#2C3448; --soft:#232A3C;
+  --accent:#7C9BFF; --accent-ink:#0E1424; --warn:#FF9C80; --warn-bg:#3A221C; --ok:#7FD3AA; --ok-bg:#16302A;
+  --z2:#3DC1AA; --thr:#F0AE4A; --vo2:#F06A98; --str:#A68BE0; --rest:#7B859B;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font);font-size:16px;line-height:1.5;-webkit-font-smoothing:antialiased}
+.wrap{max-width:560px;margin:0 auto;padding:14px 14px 120px}
+button{font:inherit;color:inherit;cursor:pointer}
+button:focus-visible,input:focus-visible,textarea:focus-visible,a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+input,textarea{font:inherit;color:var(--ink);background:var(--card);border:1px solid var(--line);border-radius:8px;padding:9px 11px;width:100%}
+textarea{resize:vertical;min-height:72px;line-height:1.55}
+input::placeholder,textarea::placeholder{color:var(--muted);opacity:.75}
+.changed{border-color:var(--accent)!important}
+
+/* Day header */
+.day{position:relative;overflow:hidden;border-radius:16px;padding:12px 14px 14px;color:#fff;background:var(--zone,var(--rest));transition:background .3s}
+.day::before{content:"";position:absolute;left:0;right:0;bottom:6px;height:64px;background-image:var(--pattern,none);background-repeat:repeat-x;background-size:240px 64px;animation:drift var(--speed,10s) linear infinite;pointer-events:none}
+.day>*{position:relative;z-index:1}
+@keyframes drift{from{background-position:0 0}to{background-position:-240px 0}}
+.day-nav{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.day-nav button{background:rgba(255,255,255,.2);border:0;border-radius:999px;width:36px;height:36px;font-size:19px;color:#fff;line-height:1}
+.day-nav .today{width:auto;padding:0 12px;font-size:13px;font-weight:600}
+.day-title{margin:8px 0 0;font-size:32px;line-height:1.1;font-weight:800;letter-spacing:-.02em}
+.day-sub{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-top:2px;font-size:15px}
+.jump{display:inline-flex;align-items:center;gap:6px;font-weight:600;background:rgba(255,255,255,.2);border:0;border-radius:999px;padding:3px 12px;color:#fff;font-size:15px}
+.day-sub a{color:#fff;opacity:.85;font-size:14px}
+
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin:10px 0 0}
+.wd{border:0;background:var(--card);border-radius:10px;padding:6px 2px 7px;text-align:center;position:relative}
+.wd .l{display:block;font-size:12px;color:var(--muted)}
+.wd .n{display:block;font-size:16px;font-weight:700}
+.wd .z{display:block;width:6px;height:6px;border-radius:50%;margin:3px auto 0;background:var(--z,transparent)}
+.wd[aria-current="date"]{background:var(--ink);color:var(--card)}
+.wd[aria-current="date"] .l{color:var(--card);opacity:.7}
+.wd .dot{position:absolute;top:4px;right:5px;width:5px;height:5px;border-radius:50%;background:var(--accent)}
+
+section{background:var(--card);border-radius:14px;padding:14px;margin-top:10px}
+.sh{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 8px}
+h2{font-size:15px;font-weight:700;margin:0}
+.hint{font-size:13px;color:var(--muted);margin-top:4px}
+.hint.err{color:var(--warn)}
+.linkish{background:none;border:0;padding:0;color:var(--accent);font-size:14px;font-weight:600}
+
+/* Written-for-today card */
+.plan{background:var(--card);border-radius:14px;padding:12px 14px;margin-top:10px}
+.todo{list-style:none;margin:0;padding:0}
+.todo li{display:flex;align-items:center;gap:10px;padding:5px 0;border-bottom:1px solid var(--line)}
+.todo li:last-child{border-bottom:0}
+.tick{flex:none;width:22px;height:22px;border-radius:50%;border:2px solid var(--line);background:transparent;padding:0;display:grid;place-items:center;font-size:13px;color:transparent;transition:background .15s,border-color .15s}
+.tick[aria-checked="true"]{background:var(--z2);border-color:var(--z2);color:#fff}
+.todo input{border:0;padding:4px 0;background:transparent;border-radius:0}
+.todo input:focus-visible{outline:none;box-shadow:inset 0 -1px 0 var(--accent)}
+.todo li.done input{text-decoration:line-through;color:var(--muted)}
+.todo .del{flex:none;border:0;background:none;color:var(--muted);font-size:16px;padding:2px 4px}
+.todo .new input::placeholder{color:var(--muted)}
+.plan-foot{display:flex;justify-content:space-between;align-items:center;margin-top:6px;min-height:18px}
+.plan-act{font-weight:700;font-size:15px}
+.plan-act span{font-weight:500;color:var(--muted)}
+.plan-note{white-space:pre-wrap;margin-top:4px;max-height:200px;overflow:auto}
+.plan-note.empty{color:var(--muted)}
+
+/* Numbers */
+.chips{display:flex;flex-wrap:wrap;gap:6px;padding:8px 0 2px}
+.chip{border:1px solid var(--line);background:transparent;border-radius:999px;padding:3px 10px;font-size:13px}
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:8px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:8px}
+.supps{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.paper{white-space:pre-wrap;background:var(--paper);border-radius:8px;padding:9px 11px;margin-bottom:8px;max-height:200px;overflow:auto;word-break:break-word}
+.paper.empty{color:var(--muted)}
+.paper ins{text-decoration:none;color:var(--accent);font-weight:600}
+
+/* Calendar */
+.cal-bg{position:fixed;inset:0;background:rgba(10,14,24,.45);display:none;align-items:flex-end;justify-content:center;z-index:11}
+.cal-bg.open{display:flex}
+.cal{background:var(--card);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:14px 14px calc(14px + env(safe-area-inset-bottom,0px))}
+.cal-h{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.cal-h strong{font-size:18px}
+.cal-h button{border:0;background:var(--soft);border-radius:999px;width:36px;height:36px;font-size:18px}
+.cal-wk,.cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cal-wk{margin:12px 0 4px;font-size:12px;color:var(--muted)}
+.cd{border:0;background:transparent;border-radius:10px;aspect-ratio:1/1;max-height:52px;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:15px;font-weight:600;position:relative}
+.cd .z{width:5px;height:5px;border-radius:50%;margin-top:3px;background:var(--z,transparent)}
+.cd.none{color:var(--muted);opacity:.45;cursor:default}
+.cd.blank{background:var(--warn-bg);color:var(--warn)}
+.cd.today{box-shadow:inset 0 0 0 2px var(--ink)}
+.cd[aria-current="date"]{background:var(--ink);color:var(--card)}
+.cal-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:12px;font-size:13px;color:var(--muted)}
+.cal-foot .sw{display:inline-block;width:12px;height:12px;border-radius:4px;background:var(--warn-bg);border:1px solid var(--warn);vertical-align:-2px;margin-right:6px}
+.mini span{display:block;font-size:12px;color:var(--muted);margin-bottom:2px}
+.mini input{padding:7px 9px;font-size:15px}
+.mini .sub{font-size:11px;color:var(--muted);margin-top:2px;min-height:14px}
+.mini .sub.err{color:var(--warn)}
+.pill{border:1px solid var(--line);background:transparent;border-radius:999px;padding:4px 12px;font-size:13px;font-weight:600}
+.pill[aria-pressed="true"]{background:var(--z2);border-color:var(--z2);color:#fff}
+.pill.changed{box-shadow:0 0 0 2px var(--accent)}
+
+/* Protein */
+.protein-total{font-size:28px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.protein-total small{font-size:14px;font-weight:600;color:var(--muted)}
+.formula{font-size:12px;color:var(--muted);word-break:break-all}
+.adds{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.adds>button{border:0;background:var(--soft);border-radius:8px;padding:8px 0;min-width:48px;font-weight:600}
+.adds .custom{display:flex;gap:6px;flex:1;min-width:130px}
+.adds .custom input{padding:7px 9px}
+.adds .custom button{border:0;background:var(--soft);border-radius:8px;padding:0 12px;font-weight:600}
+.pending{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.pending button{border:1px dashed var(--accent);background:transparent;color:var(--accent);border-radius:999px;padding:2px 10px;font-size:13px}
+.snacks{margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+table{width:100%;border-collapse:collapse;font-size:15px}
+td{padding:7px 4px;border-bottom:1px solid var(--line);vertical-align:middle}
+td.g{text-align:right;white-space:nowrap;color:var(--muted);width:56px}
+td.a{text-align:right;width:1%;white-space:nowrap}
+td.a button{border:0;border-radius:8px;padding:5px 10px;font-weight:600;font-size:13px;background:var(--soft)}
+td.a button.add{background:var(--accent);color:var(--accent-ink)}
+.newsnack{display:grid;grid-template-columns:1fr 70px auto;gap:6px;margin-top:8px}
+.newsnack button{border:0;border-radius:8px;padding:0 12px;font-weight:600;background:var(--soft)}
+.saved{font-size:12px;color:var(--muted)}
+
+.bar{position:fixed;left:0;right:0;bottom:0;padding:10px 14px calc(10px + env(safe-area-inset-bottom,0px));background:color-mix(in srgb,var(--paper) 90%,transparent);backdrop-filter:blur(10px);-webkit-backdrop-filter:blur(10px);border-top:1px solid var(--line)}
+.bar-in{max-width:560px;margin:0 auto;display:flex;align-items:center;gap:12px}
+.bar-msg{flex:1;font-size:14px;color:var(--muted)}
+.btn{border:0;border-radius:10px;padding:11px 16px;font-weight:700;background:var(--accent);color:var(--accent-ink)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.ghost{background:var(--soft);color:var(--ink);font-weight:600}
+
+.banner{border-radius:10px;padding:11px 13px;margin-top:10px;font-size:15px}
+.banner.err{background:var(--warn-bg);color:var(--warn)}
+.banner.ok{background:var(--ok-bg);color:var(--ok)}
+.banner.info{background:var(--card);color:var(--ink)}
+.banner button{margin-top:8px}
+
+.sheet-bg{position:fixed;inset:0;background:rgba(10,14,24,.45);display:none;align-items:flex-end;justify-content:center;z-index:10}
+.sheet-bg.open{display:flex}
+.sheet{background:var(--card);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:16px 14px calc(14px + env(safe-area-inset-bottom,0px));max-height:85%;overflow:auto}
+.sheet h3{margin:0 0 2px;font-size:19px}
+.ch{border-top:1px solid var(--line);padding:11px 0}
+.ch-h{display:flex;justify-content:space-between;gap:8px;font-weight:700}
+.tag{font-size:12px;font-weight:600;border-radius:999px;padding:2px 8px;background:var(--soft);color:var(--muted);white-space:nowrap}
+.tag.rep{background:var(--warn-bg);color:var(--warn)}
+.ba{font-size:14px;margin-top:3px;color:var(--muted)}
+.ba b{color:var(--ink);font-weight:600}
+.ba .v{white-space:pre-wrap;word-break:break-word}
+.confirm{display:flex;gap:8px;align-items:flex-start;margin-top:8px;font-size:14px;color:var(--warn)}
+.confirm input{width:20px;height:20px;flex:none;margin:0}
+.sheet-actions{display:flex;gap:10px;margin-top:12px}
+.sheet-actions .btn{flex:1}
+.skel{height:110px;border-radius:14px;background:var(--soft);margin-top:10px}
+.tabs{display:flex;gap:4px;background:var(--soft);border-radius:999px;padding:4px;margin-bottom:10px}
+.tabs button{flex:1;border:0;background:transparent;border-radius:999px;padding:7px 10px;font-weight:600;font-size:14px;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.tabs .count{font-weight:500;opacity:.8}
+.pn-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:4px 2px 0}
+.pn-top h1{font-size:24px;font-weight:800;margin:0;letter-spacing:-.01em}
+.pn-card .wd-line{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.pn-card .wd-line strong{font-size:16px}
+.pn-card .wd-line a{font-size:13px;color:var(--muted)}
+.pn-act{font-size:14px;font-weight:600;margin-top:2px}
+.pn-ctx{font-size:14px;color:var(--muted);margin:2px 0 8px;white-space:pre-wrap;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;cursor:pointer}
+.pn-ctx.open{display:block}
+.pn-row{display:flex;gap:8px;align-items:flex-end;margin-top:6px}
+.pn-row .msg{flex:1;font-size:13px;color:var(--muted)}
+.pn-row .msg.err{color:var(--warn)}
+.pn-card.done{opacity:.55}
+@media (prefers-reduced-motion: reduce){*{transition:none!important}.day::before{animation:none}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="tabs" role="tablist">
+    <button role="tab" id="tabDay" aria-selected="true">Day</button>
+    <button role="tab" id="tabPn" aria-selected="false"><span class="pnLabel">Notes</span> <span class="count" id="pnCount"></span></button>
+  </div>
+  <div id="dayView">
+  <header class="day" id="day">
+    <div class="day-nav">
+      <button id="prev" aria-label="Previous day">‹</button>
+      <button id="todayBtn" class="today" hidden>Back to today</button>
+      <button id="next" aria-label="Next day">›</button>
+    </div>
+    <h1 class="day-title" id="dayTitle">Loading</h1>
+    <div class="day-sub">
+      <button class="jump" id="jumpBtn" type="button" aria-haspopup="dialog"><span id="jumpText">Connecting</span> ▾</button>
+      <span id="sheetLink"></span>
+    </div>
+  </header>
+  <nav class="week" id="week" aria-label="This week"></nav>
+  <div id="banner"></div>
+  <main id="main"><div class="skel"></div><div class="skel"></div></main>
+  </div>
+  <div id="pnView" hidden>
+    <div class="pn-top"><h1 id="pnTitle">Notes</h1><span class="hint" id="pnSub"></span></div>
+    <div id="pnBanner"></div>
+    <div id="pnList"></div>
+  </div>
+</div>
+
+<div class="bar" id="bar"><div class="bar-in">
+  <div class="bar-msg" id="barMsg">No changes yet</div>
+  <button class="btn" id="reviewBtn" disabled>Review and save</button>
+</div></div>
+
+<div class="sheet-bg" id="sheetBg" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <div class="sheet">
+    <h3 id="sheetTitle">Save to your sheet</h3>
+    <div class="hint" id="sheetSub"></div>
+    <div id="changeList"></div>
+    <div class="sheet-actions">
+      <button class="btn ghost" id="cancelSave">Keep editing</button>
+      <button class="btn" id="confirmSave">Save</button>
+    </div>
+  </div>
+</div>
+
+<div class="cal-bg" id="calBg" role="dialog" aria-modal="true" aria-label="Choose a day">
+  <div class="cal">
+    <div class="cal-h"><button id="calPrev" aria-label="Previous month">‹</button><strong id="calTitle"></strong><button id="calNext" aria-label="Next month">›</button></div>
+    <div class="cal-wk"><span>S</span><span>M</span><span>T</span><span>W</span><span>T</span><span>F</span><span>S</span></div>
+    <div class="cal-grid" id="calGrid"></div>
+    <div class="cal-foot"><span id="calLegend"><span class="sw"></span>No note yet</span><button class="btn ghost" id="calToday" type="button">Today</button></div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+let SHEET_ID = "", TAB = "", TAB_GID = null, PARTNER = "partner";
+const SERVER = "Google Sheets";
+const READ_FIELDS = ["sheets.properties.sheetId","sheets.properties.title","sheets.data.rowData.values.userEnteredValue","sheets.data.rowData.values.formattedValue"];
+const PLACEHOLDERS = new Set(["","—","--","-","–"]);
+const DAY_LETTERS = ["S","M","Tu","W","Th","F","Sa"];
+const FIRST_SERIAL = 45069; // 5/23/23, row 2
+
+/* Column map, 0-based (A=0). Labels are page-only; sheet headers are never touched. */
+const FIELDS = [
+  {key:"activity", col:2,  label:"Activity", type:"text"},
+  {key:"duration", col:3,  label:"Duration", type:"duration"},
+  {key:"steps",    col:5,  label:"Steps",    type:"steps"},
+  {key:"sleep",    col:4,  label:"Sleep",    type:"auto"},
+  {key:"weight",   col:9,  label:"Weight",   type:"auto"},
+  {key:"work",     col:10, label:"Work",     type:"auto"},
+  {key:"calories", col:12, label:"Calories", type:"auto"}
+];
+const F = Object.fromEntries(FIELDS.map(f=>[f.key,f]));
+const COL = {stretch:6, note:7, pn:8, protein:11};
+const SUPPS = [{col:13,label:"Omega 3"},{col:14,label:"Vitamin D"},{col:15,label:"Creatine"},{col:16,label:"Iron"}];
+const DEFAULT_ACTS = ["Z2 Bike","Threshold Bike","VO2 Max Bike","Tempo Bike","Glutes","Upper","Glutes + Upper","Rest"];
+
+let mcp=null, db=null, uid=null;
+
+/* ===================== Google sign-in + Sheets API =====================
+   Personal settings (Client ID, sheet links, names) are entered in the app and saved only on each device. */
+const CLIENT_ID = "";
+const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
+const API = "https://sheets.googleapis.com/v4/spreadsheets/";
+const GRID_FIELDS = "sheets(properties(sheetId,title),data(startRow,startColumn,rowData(values(userEnteredValue,formattedValue))))";
+function getClientId(){ try{ return CLIENT_ID || localStorage.getItem("daily:clientId") || ""; }catch(e){ return CLIENT_ID; } }
+const Auth = {
+  token:null, exp:0, client:null,
+  load(){ try{ const t=JSON.parse(localStorage.getItem("daily:token")||"null"); if(t&&t.exp>Date.now()+60000){ this.token=t.token; this.exp=t.exp; } }catch(e){} },
+  valid(){ return (this.token && Date.now() < this.exp-60000) ? this.token : null; },
+  clear(){ this.token=null; this.exp=0; try{ localStorage.removeItem("daily:token"); }catch(e){} },
+  async ready(){ for(let i=0;i<100 && !(window.google&&google.accounts&&google.accounts.oauth2);i++) await new Promise(r=>setTimeout(r,100)); if(!(window.google&&google.accounts&&google.accounts.oauth2)) throw new Error("Google sign-in didn't load. Check your connection and reload."); },
+  async request(){
+    await this.ready();
+    if(!this.client) this.client=google.accounts.oauth2.initTokenClient({client_id:getClientId(), scope:SCOPE, callback:()=>{}});
+    return new Promise((res,rej)=>{
+      this.client.callback=r=>{ if(r.error){ rej(new Error(r.error_description||r.error)); return; } this.token=r.access_token; this.exp=Date.now()+(+r.expires_in||3600)*1000; try{ localStorage.setItem("daily:token",JSON.stringify({token:this.token,exp:this.exp})); }catch(e){} res(this.token); };
+      this.client.error_callback=e=>rej(new Error((e&&e.message)||"Sign-in was closed."));
+      this.client.requestAccessToken({prompt:""});
+    });
+  }
+};
+const SheetsAPI = {
+  async callTool(server, tool, args){
+    const tok=Auth.valid(); if(!tok){ showReauth(); throw {code:"needs_reauth"}; }
+    const opt={headers:{Authorization:"Bearer "+tok}}; let url;
+    if(tool==="get_spreadsheet"){ const q=new URLSearchParams(); (args.ranges||[]).forEach(r=>q.append("ranges",r)); q.set("includeGridData","true"); q.set("fields",GRID_FIELDS); url=API+args.spreadsheetId+"?"+q; }
+    else if(tool==="get_sheet_props"){ url=API+args.spreadsheetId+"?fields="+encodeURIComponent("sheets.properties(sheetId,title)"); }
+    else if(tool==="get_values"){ url=API+args.spreadsheetId+"/values/"+encodeURIComponent(args.range); }
+    else if(tool==="update_spreadsheet"){ url=API+args.spreadsheetId+":batchUpdate"; opt.method="POST"; opt.headers["Content-Type"]="application/json"; const body={requests:args.requests}; if(args.writeControl) body.writeControl=args.writeControl; opt.body=JSON.stringify(body); }
+    else throw {code:"tool_error", message:"Unknown action "+tool};
+    let r; try{ r=await fetch(url,opt); }catch(e){ throw {code:"server_unavailable"}; }
+    const j=await r.json().catch(()=>({}));
+    if(r.status===401){ Auth.clear(); showReauth(); throw {code:"needs_reauth"}; }
+    if(r.status===403||r.status===404) throw {code:"tool_error", message:(j.error&&j.error.message)||"This Google account can't open that spreadsheet"};
+    if(!r.ok) throw {code:"tool_error", message:(j.error&&j.error.message)||("HTTP "+r.status)};
+    return {payload:j};
+  }
+};
+function showReauth(){
+  const b=$("banner"); if(b.querySelector(".reauth")) return;
+  b.replaceChildren(el("div",{class:"banner info reauth",role:"status"},[el("div",{text:"Your Google sign-in expired. Sign in again to keep going; unsaved changes are kept."}),
+    el("button",{class:"btn",text:"Sign in with Google",onclick:async()=>{ try{ await Auth.request(); b.replaceChildren(); mcp=SheetsAPI; loadDay(fromSerial(state.serial)); }catch(e){ banner("err",e.message); } }})]));
+}
+function showSignIn(onDone){
+  $("main").replaceChildren(el("section",{},[el("h2",{text:"Connect your sheet"}),
+    el("div",{class:"hint",text:"Sign in with the Google account that can open your log sheet."}),
+    el("button",{class:"btn",style:"margin-top:12px",text:"Sign in with Google",onclick:async()=>{ try{ await Auth.request(); onDone(); }catch(e){ banner("err",e.message); } }})]));
+}
+const idFrom = v => { const m=String(v||"").match(/\/d\/([a-zA-Z0-9_-]{20,})/); return m?m[1]:(/^[a-zA-Z0-9_-]{20,}$/.test(String(v||"").trim())?String(v).trim():""); };
+function readConfig(){ try{ return JSON.parse(localStorage.getItem("daily:config")||"{}")||{}; }catch(e){ return {}; } }
+function loadConfig(){ const c=readConfig(); SHEET_ID=c.sheetId||""; TAB=c.tab||""; HEALTH_SHEET=c.healthId||""; PARTNER=c.partner||"partner"; }
+function importSetupFromHash(){
+  const m=location.hash.match(/^#setup=(.+)$/); if(!m) return;
+  try{ const c=JSON.parse(decodeURIComponent(escape(atob(m[1])))); if(c.clientId) localStorage.setItem("daily:clientId",c.clientId); delete c.clientId; localStorage.setItem("daily:config",JSON.stringify(c)); }catch(e){}
+  history.replaceState(null,"",location.pathname);
+}
+function applyPartnerLabels(){ document.querySelectorAll(".pnLabel").forEach(e=>e.textContent="To "+PARTNER); const t=$("pnTitle"); if(t) t.textContent="Notes to "+PARTNER; }
+function pasteLink(){
+  const i=el("input",{type:"text",placeholder:"Paste a setup link from your other device","aria-label":"Setup link"});
+  i.addEventListener("input",()=>{ const m=i.value.trim().match(/#setup=(.+)$/); if(!m) return;
+    try{ const c=JSON.parse(decodeURIComponent(escape(atob(m[1])))); if(c.clientId) localStorage.setItem("daily:clientId",c.clientId); delete c.clientId; localStorage.setItem("daily:config",JSON.stringify(c)); location.reload(); }
+    catch(e){ banner("err","That setup link didn't work. Copy it again from your other device."); } });
+  return el("label",{class:"f",style:"display:block;margin-top:10px"},[el("span",{class:"hint",style:"display:block;margin:0 0 4px",text:"Have a setup link? Paste it here"}),i]);
+}
+function showSetup(){
+  const c=readConfig();
+  const f=(label,val,ph,hint)=>{ const i=el("input",{type:"text",placeholder:ph||"","aria-label":label}); i.value=val||""; return {i, node:el("label",{class:"f",style:"display:block;margin-top:10px"},[el("span",{class:"hint",style:"display:block;margin:0 0 4px",text:label}),i,hint?el("div",{class:"hint",text:hint}):null])}; };
+  const cid=f("Google OAuth Client ID",getClientId(),"xxxx.apps.googleusercontent.com");
+  const sheet=f("Log spreadsheet link",c.sheetId?"https://docs.google.com/spreadsheets/d/"+c.sheetId+"/edit":"","https://docs.google.com/spreadsheets/d/…");
+  const tab=f("Tab name",c.tab,"The tab at the bottom of the sheet");
+  const partner=f("Name for the partner-notes column",c.partner,"e.g. Sam","Used for the second note and its tab.");
+  const health=f("Health responses spreadsheet link (optional)",c.healthId?"https://docs.google.com/spreadsheets/d/"+c.healthId+"/edit":"","Leave empty to skip Health auto-fill");
+  const save=()=>{
+    const clientId=cid.i.value.trim(), sheetId=idFrom(sheet.i.value), healthId=idFrom(health.i.value);
+    if(!/\.apps\.googleusercontent\.com$/.test(clientId)) return banner("err","The Client ID should end in .apps.googleusercontent.com.");
+    if(!sheetId) return banner("err","Paste the full link to your log spreadsheet.");
+    if(!tab.i.value.trim()) return banner("err","Enter the tab name.");
+    if(health.i.value.trim() && !healthId) return banner("err","That Health link doesn't look like a Google Sheets link.");
+    try{ localStorage.setItem("daily:clientId",clientId); localStorage.setItem("daily:config",JSON.stringify({sheetId,tab:tab.i.value.trim(),partner:partner.i.value.trim()||"partner",healthId})); }catch(e){}
+    location.reload();
+  };
+  const copyLink=async()=>{
+    const cfg=Object.assign({clientId:getClientId()},readConfig());
+    const link=location.origin+location.pathname+"#setup="+btoa(unescape(encodeURIComponent(JSON.stringify(cfg))));
+    try{ await navigator.clipboard.writeText(link); banner("ok","Setup link copied. Open it on your other device (AirDrop or a note to yourself) and it fills in these settings there. It doesn't give anyone access to your sheet."); }
+    catch(e){ banner("info","Copy this setup link to your other device: "+link); }
+  };
+  $("dayView").hidden=false; $("pnView").hidden=true; $("bar").hidden=true; $("week").replaceChildren();
+  $("dayTitle").textContent="Settings";
+  $("main").replaceChildren(el("section",{},[el("h2",{text:"Settings"}),
+    el("div",{class:"hint",text:"Saved only on this device. Nothing here is in the app's code."}),
+    pasteLink(),
+    cid.node, sheet.node, tab.node, partner.node, health.node,
+    el("div",{style:"display:flex;gap:10px;margin-top:14px;flex-wrap:wrap"},[el("button",{class:"btn",type:"button",text:"Save",onclick:save}),
+      c.sheetId?el("button",{class:"btn ghost",type:"button",text:"Copy setup link for another device",onclick:copyLink}):null,
+      c.sheetId?el("button",{class:"btn ghost",type:"button",text:"Cancel",onclick:()=>location.reload()}):null])]));
+}
+async function resolveTab(){
+  const res=await mcp.callTool(SERVER,"get_sheet_props",{spreadsheetId:SHEET_ID});
+  const p=parsePayload(res); const sh=((p&&p.sheets)||[]).find(x=>x.properties&&x.properties.title===TAB);
+  if(!sh) throw {code:"tool_error",message:"There's no tab named \u201c"+TAB+"\u201d in that spreadsheet. Fix it in Settings"};
+  TAB_GID=sh.properties.sheetId;
+}
+/* ================================================================================================ */
+const state = { y:0,m:0,d:0, serial:0, rowNum:null, row:[], rev:null, window:[], draft:null, busy:false, snacks:[], snacksOpen:false, editSnacks:false };
+
+const $ = id => document.getElementById(id);
+const el = (tag, attrs, kids) => { const e=document.createElement(tag); if(attrs) for(const k in attrs){ const v=attrs[k]; if(k==="text") e.textContent=v; else if(k==="class") e.className=v; else if(k.startsWith("on")) e.addEventListener(k.slice(2),v); else if(v!==false && v!=null) e.setAttribute(k,v===true?"":v); } (kids||[]).forEach(c=>c!=null&&e.append(c)); return e; };
+
+/* ---------- dates ---------- */
+function serialOf(y,m,d){ return Math.round((Date.UTC(y,m-1,d)-Date.UTC(1899,11,30))/86400000); }
+function fromSerial(s){ const t=new Date(Date.UTC(1899,11,30)+s*86400000); return {y:t.getUTCFullYear(),m:t.getUTCMonth()+1,d:t.getUTCDate()}; }
+function todayParts(){ const n=new Date(); return {y:n.getFullYear(),m:n.getMonth()+1,d:n.getDate()}; }
+function fmtShort(p){ return p.m+"/"+p.d+"/"+String(p.y).slice(-2); }
+function iso(p){ return p.y+"-"+String(p.m).padStart(2,"0")+"-"+String(p.d).padStart(2,"0"); }
+function weekday(p){ return new Date(p.y,p.m-1,p.d).toLocaleDateString(undefined,{weekday:"long"}); }
+function longDate(p){ return new Date(p.y,p.m-1,p.d).toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"}); }
+function shortDate(p){ return new Date(p.y,p.m-1,p.d).toLocaleDateString(undefined,{month:"short",day:"numeric"}); }
+function parseShort(s){ const m=String(s||"").trim().match(/^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/); if(!m) return null; const y=m[3].length===2?2000+(+m[3]):+m[3]; return serialOf(y,+m[1],+m[2]); }
+
+/* ---------- cell helpers ---------- */
+const uevOf = c => (c && c.userEnteredValue) || null;
+function isEmptyish(c){ const u=uevOf(c); if(!u) return true; if("stringValue" in u) return PLACEHOLDERS.has(String(u.stringValue).trim()); if("boolValue" in u) return u.boolValue===false; return false; }
+function isBlank(c){ const u=uevOf(c); return !u || ("stringValue" in u && u.stringValue===""); }
+function display(c){ if(!c) return ""; if(c.formattedValue!=null) return String(c.formattedValue); const u=uevOf(c); if(!u) return ""; return String(Object.values(u)[0]); }
+function sameUEV(a,b){
+  a=a||{}; b=b||{}; const ka=Object.keys(a), kb=Object.keys(b);
+  const ea = ka.length===0 || (ka[0]==="stringValue" && a.stringValue===""), eb = kb.length===0 || (kb[0]==="stringValue" && b.stringValue==="");
+  if(ea||eb) return ea&&eb;
+  if(ka[0]!==kb[0]) return false;
+  if(ka[0]==="numberValue") return Math.abs(a.numberValue-b.numberValue)<1e-9;
+  return a[ka[0]]===b[kb[0]];
+}
+function rowsEqual(r1,r2){ for(let i=0;i<17;i++) if(!sameUEV(uevOf(r1[i]),uevOf(r2[i]))) return false; return true; }
+const isNum = s => /^-?\d+(\.\d+)?$/.test(String(s).trim());
+function zoneOf(act){
+  const a=String(act||"").toLowerCase();
+  if(/vo2/.test(a)) return "vo2";
+  if(/threshold|tempo|sprint|interval/.test(a)) return "thr";
+  if(/glute|upper|lift|leg|pull|push|strength|arm|back/.test(a)) return "str";
+  if(/z2|zone ?2|bike|ride|run|cycl|swim|walk|basketball/.test(a)) return "z2";
+  return "rest";
+}
+function editableOf(f, c){
+  const u=uevOf(c); if(!u) return "";
+  if(f.type==="duration" && "numberValue" in u) return String(Math.round(u.numberValue*1440));
+  if("stringValue" in u) return PLACEHOLDERS.has(u.stringValue.trim()) ? "" : u.stringValue;
+  if("numberValue" in u) return String(+u.numberValue.toFixed(6));
+  return display(c);
+}
+function parseDuration(s){
+  s=String(s).trim(); let m;
+  if((m=s.match(/^(\d+):(\d{1,2})$/))) return (+m[1])*60+(+m[2]);
+  if((m=s.match(/^(\d+(?:\.\d+)?)$/))) return +m[1];
+  if((m=s.match(/^(?:(\d+)\s*h(?:r|rs|our|ours)?)?\s*(?:(\d+)\s*m(?:in|ins)?)?$/i)) && (m[1]||m[2])) return (+(m[1]||0))*60+(+(m[2]||0));
+  return null;
+}
+function uevFor(f, s){
+  s=String(s).trim();
+  if(f.type==="duration"){ const mins=parseDuration(s); return mins==null?null:{numberValue:mins/1440}; }
+  if(f.type==="steps"){ const t=s.replace(/[,\s]/g,""); if(/^\d+(\.\d+)?k$/i.test(t)) return {numberValue:Math.round(parseFloat(t)*1000)}; return isNum(t)?{numberValue:+t}:{stringValue:s}; }
+  if(f.type==="auto" && isNum(s)) return {numberValue:+s};
+  return {stringValue:s};
+}
+function prettyDuration(mins){ const h=Math.floor(mins/60), m=Math.round(mins%60); return h+"hr "+String(m).padStart(2,"0")+"min"; }
+function joinNote(base, add){
+  add=add.trim(); if(!add) return base;
+  if(!base || PLACEHOLDERS.has(base.trim())) return add;
+  if(/[,;]\s+$/.test(base)) return base+add;
+  if(/[,;]$/.test(base)) return base+" "+add;
+  return base.replace(/\s+$/,"")+", "+add;
+}
+
+/* ---------- unsaved sheet edits (this browser only, until saved) ---------- */
+function blankDraft(){ return {fields:{}, supps:{}, stretch:null, noteAdd:"", noteReplace:null, pnAdd:"", pnReplace:null, proteinAdds:[]}; }
+const draftKey = s => "daily:draft:"+s;
+function draftEmpty(d){ return !Object.keys(d.fields).length && !Object.keys(d.supps||{}).length && d.stretch==null && !d.noteAdd && d.noteReplace==null && !d.pnAdd && d.pnReplace==null && !d.proteinAdds.length; }
+function saveDraftLocal(){ try{ if(draftEmpty(state.draft)) localStorage.removeItem(draftKey(state.serial)); else localStorage.setItem(draftKey(state.serial), JSON.stringify(state.draft)); }catch(e){} }
+function loadDraftLocal(serial){ let d=blankDraft(); try{ const s=localStorage.getItem(draftKey(serial)); if(s) d=Object.assign(d, JSON.parse(s)); }catch(e){} if(d.fields.distance!=null){ d.fields.steps=d.fields.distance; delete d.fields.distance; } d.supps=d.supps||{}; d.proteinAdds=(d.proteinAdds||[]).map(x=>typeof x==="number"?{g:x}:x); return d; }
+function hasDraft(serial){ try{ return !!localStorage.getItem(draftKey(serial)); }catch(e){ return false; } }
+
+/* ---------- page storage (snacks, still-to-eat): synced via the page's private store ---------- */
+async function storeGet(name){
+  if(db&&uid){ try{ const s=await db.doc("data/users/"+uid+"/"+name).get(); return s.exists?s.data():null; }catch(e){} }
+  try{ const v=localStorage.getItem("daily:"+name); return v?JSON.parse(v):null; }catch(e){ return null; }
+}
+async function storeSet(name, data){
+  try{ localStorage.setItem("daily:"+name, JSON.stringify(data)); }catch(e){}
+  if(db&&uid){ await db.doc("data/users/"+uid+"/"+name).set(data); return "synced"; }
+  return "local";
+}
+
+/* ---------- connector calls ---------- */
+function parsePayload(res){ let p=res && res.payload; if(typeof p==="string"){ try{ p=JSON.parse(p); }catch(e){} } if(p && typeof p==="object" && p.content && typeof p.content==="object" && !p.sheets && !p.values) p=p.content; return p; }
+async function readRange(a1){
+  const res = await mcp.callTool(SERVER,"get_spreadsheet",{spreadsheetId:SHEET_ID, includeGridData:true, ranges:[a1], fields:READ_FIELDS},{cache:false});
+  const p = parsePayload(res);
+  if(!p || !p.sheets || !p.sheets[0]) throw {code:"bad_shape", message:"Unexpected reply from Google Sheets."};
+  const sh=p.sheets[0]; const data=(sh.data&&sh.data[0])||{};
+  const start=(data.startRow||0)+1; const rows={};
+  (data.rowData||[]).forEach((r,i)=>{ rows[start+i]=(r.values||[]); });
+  return {rows, rev:p.revisionId||null};
+}
+async function scanDates(){
+  const res = await mcp.callTool(SERVER,"get_values",{spreadsheetId:SHEET_ID, range:TAB+"!B1:B3000"},{cache:false});
+  const p=parsePayload(res); return (p&&p.values)||[];
+}
+async function writeRequests(requests, rev){
+  const args={spreadsheetId:SHEET_ID,requests}; if(rev) args.writeControl={requiredRevisionId:rev};
+  return mcp.callTool(SERVER,"update_spreadsheet",args,{cache:false});
+}
+function errText(e){
+  switch(e&&e.code){
+    case "needs_reauth": return "Your Google sign-in expired. Sign in again to keep going.";
+    case "not_in_manifest": return "This page isn't allowed to use Google Sheets right now. Allow it from the page's Permissions menu, then reload.";
+    case "blocked_by_policy": return "Your organization's settings block this Google Sheets action.";
+    case "server_unavailable": return "Google Sheets didn't respond. Wait a moment and try again.";
+    case "tool_error": return "Google Sheets refused the request: "+(e.message||"no details given")+".";
+    default: return (e&&e.message) ? e.message : "Something went wrong talking to Google Sheets.";
+  }
+}
+function banner(kind, text, actionLabel, action){
+  const b=$("banner"); b.replaceChildren(); if(!kind) return;
+  const box=el("div",{class:"banner "+kind,role:kind==="err"?"alert":"status"},[el("div",{text})]);
+  if(actionLabel) box.append(el("button",{class:"btn ghost",text:actionLabel,onclick:action}));
+  b.append(box);
+}
+
+/* ---------- load a day ---------- */
+let loadToken=0;
+async function loadDay(p, opts){
+  opts=opts||{}; const token=++loadToken;
+  state.y=p.y; state.m=p.m; state.d=p.d; state.serial=serialOf(p.y,p.m,p.d);
+  const t=todayParts();
+  $("todayBtn").hidden = (serialOf(t.y,t.m,t.d)===state.serial);
+  $("dayTitle").textContent=weekday(p); $("jumpText").textContent=longDate(p); $("sheetLink").replaceChildren();
+  if(!opts.keepBanner) banner(null);
+  $("main").replaceChildren(el("div",{class:"skel"}),el("div",{class:"skel"}));
+  state.rowNum=null; updateBar();
+  try{
+    let found = state.serial>=FIRST_SERIAL && await findRow(state.serial-45067);
+    if(token!==loadToken) return;
+    if(!found){
+      const vals=await scanDates(); if(token!==loadToken) return;
+      const idx=vals.findIndex(r=>r&&parseShort(r[0])===state.serial);
+      if(idx>=0) found=await findRow(idx+1);
+      if(token!==loadToken) return;
+      if(!found){ renderNoRow(p, vals); return; }
+    }
+  }catch(e){ if(token===loadToken) renderLoadError(e); return; }
+  state.draft=loadDraftLocal(state.serial);
+  render();
+  loadMeals(state.serial);
+  applyHealthAuto(state.serial, token);
+}
+async function findRow(guess){
+  if(guess<2) return false;
+  const lo=Math.max(2,guess-6), hi=guess+1;
+  const r=await readRange(TAB+"!A"+lo+":Q"+hi);
+  for(let n=lo;n<=hi;n++){
+    const u=uevOf(r.rows[n]&&r.rows[n][1]);
+    if(u && u.numberValue===state.serial){
+      state.rowNum=n; state.row=padRow(r.rows[n]); state.rev=r.rev;
+      state.window=[]; for(let k=n-6;k<=n;k++) if(k>=2) state.window.push({n:k,row:padRow(r.rows[k]||[])});
+      return true;
+    }
+  }
+  return false;
+}
+const padRow = r => { const a=(r||[]).slice(0,17); while(a.length<17) a.push({}); return a; };
+
+/* No row: offer to add rows at the bottom, only if the date comes after the last dated row. */
+function renderNoRow(p, vals){
+  $("week").replaceChildren(); setZone("rest");
+  let lastRow=-1, lastSerial=null;
+  for(let i=vals.length-1;i>=0;i--){ const s=parseShort(vals[i]&&vals[i][0]); if(s!=null){ lastRow=i+1; lastSerial=s; break; } }
+  const sec=el("section",{},[el("h2",{text:"No row for "+fmtShort(p)+" yet"})]);
+  const gap = lastSerial!=null ? state.serial-lastSerial : 0;
+  if(lastSerial!=null && gap>0 && gap<=62){
+    const first=fromSerial(lastSerial+1);
+    sec.append(el("div",{class:"hint",text:"Your sheet's last day is "+shortDate(fromSerial(lastSerial))+" in row "+lastRow+". I can add "+(gap===1?"a row for "+shortDate(p):gap+" rows ("+shortDate(first)+" to "+shortDate(p)+")")+" right below it, with the day and date filled in, and the same formatting as row "+lastRow+". I'll check those rows are completely empty first."}));
+    sec.append(el("button",{class:"btn",style:"margin-top:10px",text:gap===1?"Add this day's row":"Add "+gap+" rows",onclick:()=>addRows(lastRow,lastSerial,gap,p)}));
+  } else {
+    sec.append(el("div",{class:"hint",text:"Your "+TAB+" tab doesn't have a row with this date, and it isn't right after your last row, so the page won't create one. Add it in the sheet if you need it."}));
+  }
+  $("main").replaceChildren(sec);
+}
+async function addRows(lastRow, lastSerial, gap, p){
+  banner("info","Checking the rows below row "+lastRow+" are empty…");
+  try{
+    const lo=lastRow+1, hi=lastRow+gap;
+    const r=await readRange(TAB+"!A"+lastRow+":Q"+hi);
+    const lastB=uevOf((r.rows[lastRow]||[])[1]);
+    if(!lastB || lastB.numberValue!==lastSerial){ banner("err","Nothing was added. Row "+lastRow+" changed since the page looked. Reloading."); return loadDay(p,{keepBanner:true}); }
+    for(let n=lo;n<=hi;n++){ const row=r.rows[n]||[]; if(row.some(c=>!isBlank(c) && !(uevOf(c)&&uevOf(c).boolValue===false))){ banner("err","Nothing was added. Row "+n+" already has something in it, so the page won't write there. Check the sheet."); return; } }
+    const requests=[{copyPaste:{source:{sheetId:TAB_GID,startRowIndex:lastRow-1,endRowIndex:lastRow,startColumnIndex:0,endColumnIndex:17},destination:{sheetId:TAB_GID,startRowIndex:lo-1,endRowIndex:hi,startColumnIndex:0,endColumnIndex:17},pasteType:"PASTE_FORMAT"}}];
+    const rows=[];
+    for(let k=1;k<=gap;k++){ const s=lastSerial+k, pd=fromSerial(s); rows.push({values:[{userEnteredValue:{stringValue:DAY_LETTERS[new Date(pd.y,pd.m-1,pd.d).getDay()]}},{userEnteredValue:{numberValue:s}}]}); }
+    requests.push({updateCells:{start:{sheetId:TAB_GID,rowIndex:lo-1,columnIndex:0},rows,fields:"userEnteredValue"}});
+    requests.push({updateCells:{start:{sheetId:TAB_GID,rowIndex:lo-1,columnIndex:6},rows:rows.map(()=>({values:[{userEnteredValue:{boolValue:false}}]})),fields:"userEnteredValue"}});
+    requests.push({updateCells:{start:{sheetId:TAB_GID,rowIndex:lo-1,columnIndex:13},rows:rows.map(()=>({values:SUPPS.map(()=>({userEnteredValue:{boolValue:false}}))})),fields:"userEnteredValue"}});
+    banner("info","Adding rows…");
+    let werr=null; try{ await writeRequests(requests, r.rev); }catch(e){ werr=e; }
+    const check=await readRange(TAB+"!B"+lo+":B"+hi);
+    const ok=[...Array(gap)].every((_,i)=>{ const u=uevOf((check.rows[lo+i]||[])[0]); return u&&u.numberValue===lastSerial+i+1; });
+    if(ok){ for(const k in calCache) delete calCache[k]; banner("ok","Added rows "+lo+" to "+hi+"."); return loadDay(p,{keepBanner:true}); }
+    banner("err","Nothing was added"+(werr?(": "+errText(werr)):"")+". The sheet may have been edited at the same moment. Try again.");
+  }catch(e){ banner("err","Nothing was added. "+errText(e)); }
+}
+function renderLoadError(e){ $("main").replaceChildren(); banner("err", errText(e), "Try again", ()=>loadDay({y:state.y,m:state.m,d:state.d})); }
+
+/* ---------- render ---------- */
+const TRACES={
+  rest:{d:"M0 36 C40 30 80 42 120 36 S200 30 240 36",speed:"16s"},
+  z2:{d:"M0 38 L84 38 L92 32 L100 38 L110 38 L118 14 L126 54 L134 38 L150 38 L160 31 L170 38 L240 38",speed:"10s"},
+  thr:{d:"M0 38 L30 38 L38 14 L46 54 L54 38 L90 38 L98 31 L106 38 L150 38 L158 14 L166 54 L174 38 L210 38 L218 31 L226 38 L240 38",speed:"7s"},
+  vo2:{d:"M0 38 L14 38 L22 4 L30 60 L38 38 L74 38 L82 4 L90 60 L98 38 L134 38 L142 4 L150 60 L158 38 L194 38 L202 4 L210 60 L218 38 L240 38",speed:"4.5s"},
+  str:{d:"M0 38 L40 38 L40 22 L52 22 L52 14 L68 14 L68 22 L80 22 L80 38 L160 38 L160 22 L172 22 L172 14 L188 14 L188 22 L200 22 L200 38 L240 38",speed:"9s"}
+};
+function setZone(z){
+  const r=document.documentElement.style, t=TRACES[z]||TRACES.rest;
+  r.setProperty("--zone","var(--"+z+")");
+  const svg="<svg xmlns='http://www.w3.org/2000/svg' width='240' height='64' viewBox='0 0 240 64'><path d='"+t.d+"' fill='none' stroke='white' stroke-opacity='.32' stroke-width='2.5' stroke-linejoin='round' stroke-linecap='round'/></svg>";
+  r.setProperty("--pattern",'url("data:image/svg+xml,'+encodeURIComponent(svg)+'")');
+  r.setProperty("--speed",t.speed);
+}
+function currentActivity(){ const v=state.draft.fields.activity; return (v!=null && v.trim()) ? v : display(state.row[2]); }
+
+function renderWeek(){
+  const w=$("week"); w.replaceChildren();
+  state.window.forEach(({n,row})=>{
+    const u=uevOf(row[1]); if(!u||typeof u.numberValue!=="number") return;
+    const pd=fromSerial(u.numberValue); const act=display(row[2]); const isCur=n===state.rowNum;
+    const b=el("button",{class:"wd","aria-label":weekday(pd)+" "+fmtShort(pd)+(act?", "+act:""),"aria-current":isCur?"date":false,onclick:()=>{ if(!isCur) loadDay(pd); }},[
+      el("span",{class:"l",text:DAY_LETTERS[new Date(pd.y,pd.m-1,pd.d).getDay()]}),
+      el("span",{class:"n",text:String(pd.d)}),
+      el("span",{class:"z"})
+    ]);
+    if(act && !PLACEHOLDERS.has(act)) b.style.setProperty("--z","var(--"+zoneOf(act)+")");
+    if(hasDraft(u.numberValue)) b.append(el("span",{class:"dot",title:"Unsaved changes"}));
+    w.append(b);
+  });
+}
+
+function render(){
+  const row=state.row;
+  $("sheetLink").replaceChildren(el("a",{href:"https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/edit#gid="+TAB_GID+"&range=A"+state.rowNum,target:"_blank",rel:"noopener",text:"Row "+state.rowNum}));
+  setZone(zoneOf(currentActivity()));
+  renderWeek();
+  const main=$("main"); main.replaceChildren();
+
+  main.append(todoCard());
+  main.append(trainingSection());
+  main.append(bodySection());
+  main.append(proteinSection());
+  main.append(noteSection("Note","note",COL.note,"Add to this day's note"));
+  main.append(noteSection("Note to "+PARTNER,"pn",COL.pn,"Add a note to "+PARTNER));
+  main.append(el("p",{class:"hint",style:"text-align:center;margin-top:14px",text:"Empty boxes never erase anything. Nothing reaches the sheet until you review and save."}));
+  main.append(el("p",{style:"text-align:center;margin:6px 0 0"},[el("button",{class:"linkish",type:"button",text:"Settings",onclick:showSetup})]));
+  updateBar();
+}
+
+function fieldInput(f, extra, onSync){
+  const orig=editableOf(f, state.row[f.col]);
+  const inp=el("input",Object.assign({type:"text",autocomplete:"off","aria-label":f.label,id:"f-"+f.key},extra||{}));
+  const dv=state.draft.fields[f.key]; inp.value = dv!=null ? dv : orig;
+  const mark=()=>{ const v=inp.value.trim(); const ch=v!=="" && v!==orig.trim(); inp.classList.toggle("changed",ch); if(onSync) onSync(inp.value); return ch; };
+  inp.addEventListener("input",()=>{ if(mark()) state.draft.fields[f.key]=inp.value; else delete state.draft.fields[f.key]; if(f.key==="activity") setZone(zoneOf(currentActivity())); changed(); });
+  mark(); return inp;
+}
+function mini(f, label, extra, subFn){
+  const sub=el("div",{class:"sub"});
+  const inp=fieldInput(f, Object.assign({inputmode:"decimal",placeholder:"—"},extra||{}), v=>{ if(!subFn) return; const r=subFn(v); sub.textContent=r?r.text:""; sub.classList.toggle("err",!!(r&&r.err)); });
+  return el("label",{class:"mini"},[el("span",{text:label}),inp,sub]);
+}
+function stretchPill(){
+  const d=state.draft, row=state.row;
+  const sheetStretch=!!(uevOf(row[COL.stretch])&&uevOf(row[COL.stretch]).boolValue);
+  const cur=()=>d.stretch!=null?d.stretch:sheetStretch;
+  const pill=el("button",{class:"pill",type:"button","aria-pressed":String(cur()),text:cur()?"Stretched ✓":"Stretched?"});
+  if(d.stretch!=null) pill.classList.add("changed");
+  pill.addEventListener("click",()=>{ const now=!cur(); d.stretch=(now===sheetStretch)?null:now; pill.setAttribute("aria-pressed",String(now)); pill.textContent=now?"Stretched ✓":"Stretched?"; pill.classList.toggle("changed",d.stretch!=null); changed(); });
+  return pill;
+}
+function trainingSection(){
+  const sec=el("section",{},[el("div",{class:"sh"},[el("h2",{text:"Training"}),stretchPill()])]);
+  const actInput=fieldInput(F.activity,{placeholder:"Activity"});
+  const recent=[...new Set(state.window.map(w=>display(w.row[2])).filter(a=>a&&!PLACEHOLDERS.has(a)))];
+  const acts=[...new Set([...recent,...DEFAULT_ACTS])].slice(0,10);
+  sec.append(actInput, el("div",{class:"chips"},acts.map(a=>el("button",{class:"chip",type:"button",text:a,onclick:()=>{ actInput.value=a; actInput.dispatchEvent(new Event("input")); }}))));
+  sec.append(el("div",{class:"grid2"},[
+    mini(F.duration,"Duration (min)",{inputmode:"numeric"},v=>{ v=v.trim(); if(!v) return null; const m=parseDuration(v); return m==null?{text:"Use 55 or 1:05",err:true}:{text:prettyDuration(m)}; }),
+    mini(F.steps,"Steps",{inputmode:"numeric"},v=>{ const u=uevFor(F.steps,v); return (v.trim()&&u&&"numberValue" in u)?{text:u.numberValue.toLocaleString()}:null; })
+  ]));
+  return sec;
+}
+function suppPill(sp){
+  const d=state.draft, c=state.row[sp.col];
+  const sheetVal=!!(uevOf(c)&&uevOf(c).boolValue===true);
+  const cur=()=>d.supps[sp.col]!=null?d.supps[sp.col]:sheetVal;
+  const pill=el("button",{class:"pill",type:"button","aria-pressed":String(cur()),text:(cur()?"✓ ":"")+sp.label});
+  if(d.supps[sp.col]!=null) pill.classList.add("changed");
+  pill.addEventListener("click",()=>{ const now=!cur(); if(now===sheetVal) delete d.supps[sp.col]; else d.supps[sp.col]=now; pill.setAttribute("aria-pressed",String(now)); pill.textContent=(now?"✓ ":"")+sp.label; pill.classList.toggle("changed",d.supps[sp.col]!=null); changed(); });
+  return pill;
+}
+function bodySection(){
+  return el("section",{},[el("div",{class:"sh"},[el("h2",{text:"Body and day"}),healthButton()]),
+    el("div",{class:"grid4"},[mini(F.weight,"Weight"),mini(F.sleep,"Sleep"),mini(F.work,"Work"),mini(F.calories,"Calories")]),
+    el("div",{class:"supps"},SUPPS.map(suppPill))]);
+}
+
+/* To-do: checklist built from the day's pre-written note. Saved with the page only, never written to the sheet. */
+function splitItems(text){
+  const out=[]; let cur="", depth=0;
+  for(const ch of String(text||"")){ if(ch==="("||ch==="[") depth++; if((ch===")"||ch==="]")&&depth>0) depth--; if((ch===","||ch==="\n")&&depth===0){ out.push(cur); cur=""; } else cur+=ch; }
+  out.push(cur); return out.map(x=>x.trim()).filter(Boolean);
+}
+let todoTimer=null;
+function todoCard(){
+  const row=state.row, serial=state.serial;
+  const sheetNote=isEmptyish(row[COL.note])?"":display(row[COL.note]);
+  const fromSheet=()=>splitItems(sheetNote).map(t=>({t,done:false}));
+  let items=fromSheet();
+  const list=el("ul",{class:"todo"}); const st=el("span",{class:"saved"});
+  const reset=el("button",{class:"linkish",type:"button",text:"Reset to sheet's note"});
+  const same=()=>items.length===splitItems(sheetNote).length && items.every((it,i)=>!it.done && it.t===splitItems(sheetNote)[i]);
+  const persist=()=>{ reset.hidden=same(); st.textContent="Saving…"; clearTimeout(todoTimer); todoTimer=setTimeout(async()=>{ try{ await storeSet("todo-"+serial,{items:items.filter(i=>i.t.trim())}); if(state.serial===serial) st.textContent="Saved"; }catch(e){ st.textContent="Saved on this device"; } },500); };
+  const draw=(focusIdx)=>{
+    list.replaceChildren();
+    items.forEach((it,i)=>{
+      const tick=el("button",{class:"tick",type:"button",role:"checkbox","aria-checked":String(it.done),"aria-label":"Done: "+it.t,text:"✓"});
+      const inp=el("input",{type:"text","aria-label":"To-do item"}); inp.value=it.t;
+      const li=el("li",{class:it.done?"done":""},[tick,inp,el("button",{class:"del",type:"button","aria-label":"Delete "+it.t,text:"✕",onclick:()=>{ items.splice(i,1); draw(); persist(); }})]);
+      tick.addEventListener("click",()=>{ it.done=!it.done; tick.setAttribute("aria-checked",String(it.done)); li.classList.toggle("done",it.done); persist(); });
+      inp.addEventListener("input",()=>{ it.t=inp.value; persist(); });
+      inp.addEventListener("blur",()=>{ if(!it.t.trim()){ items.splice(items.indexOf(it),1); draw(); persist(); } });
+      inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); items.splice(i+1,0,{t:"",done:false}); draw(i+1); } });
+      list.append(li);
+      if(focusIdx===i) requestAnimationFrame(()=>inp.focus());
+    });
+    const add=el("input",{type:"text",placeholder:"Add a to-do","aria-label":"Add a to-do"});
+    add.addEventListener("keydown",e=>{ if(e.key==="Enter" && add.value.trim()){ items.push({t:add.value.trim(),done:false}); draw(); persist(); requestAnimationFrame(()=>{ const n=list.querySelector(".new input"); if(n) n.focus(); }); } });
+    list.append(el("li",{class:"new"},[el("span",{class:"tick",style:"border-style:dashed"}),add]));
+  };
+  reset.addEventListener("click",()=>{ items=fromSheet(); draw(); persist(); });
+  reset.hidden=true; draw();
+  Promise.all([storeGet("todo-"+serial),storeGet("scratch-"+serial)]).then(([d,old])=>{
+    if(state.serial!==serial||list.contains(document.activeElement)) return;
+    if(d&&Array.isArray(d.items)) items=d.items.map(x=>({t:String(x.t||""),done:!!x.done}));
+    else if(old&&typeof old.text==="string") items=splitItems(old.text).map(t=>({t,done:false}));
+    else return;
+    reset.hidden=same(); draw();
+  });
+  return el("div",{class:"plan"},[el("div",{class:"sh"},[el("h2",{text:"To-do"}),reset]), list, el("div",{class:"plan-foot"},[st,el("span")])]);
+}
+
+/* ---------- Apple Health (via iPhone Shortcut → clipboard) ---------- */
+function parseHealth(text){
+  const t=String(text||""); const out={};
+  const sm=t.match(/steps\s*[=:]\s*([\d,\.]+)/i); if(sm){ const n=Math.round(parseFloat(sm[1].replace(/,/g,""))); if(n>=0) out.steps=n; }
+  const sl=t.match(/sleep\s*[=:]\s*([\d,\.]+)/i);
+  if(sl){ let h=parseFloat(sl[1].replace(/,/g,"")); if(h>1440) h/=3600; else if(h>24) h/=60; if(h>0) out.sleep=Math.round(h*10)/10; }
+  return out;
+}
+function applyHealth(vals, raw){
+  const bad=[];
+  if(vals.steps!=null && vals.steps>60000){ bad.push(vals.steps.toLocaleString()+" steps"); vals.steps=null; }
+  if(vals.sleep!=null && vals.sleep>16){ bad.push(vals.sleep+" hrs sleep"); vals.sleep=null; }
+  const set=(key,v)=>{ const inp=document.getElementById("f-"+key); if(inp&&v!=null){ inp.value=String(v); inp.dispatchEvent(new Event("input")); } };
+  set("steps",vals.steps); set("sleep",vals.sleep);
+  const parts=[]; if(vals.steps!=null) parts.push(vals.steps.toLocaleString()+" steps"); if(vals.sleep!=null) parts.push(vals.sleep+" hrs sleep");
+  const copied=" The shortcut copied: \u201c"+String(raw||"").trim().slice(0,160)+"\u201d";
+  if(bad.length) banner("err",(parts.length?"Filled in "+parts.join(" and ")+". ":"")+"Skipped "+bad.join(" and ")+" because that's more than one day could hold, so the shortcut is likely counting duplicate sources or more than one day."+copied);
+  else banner("ok","Filled in "+parts.join(" and ")+" from Apple Health. Review and save when ready."+copied);
+}
+function healthButton(){
+  const b=el("button",{class:"pill",type:"button",text:"From Health"});
+  b.addEventListener("click",async()=>{
+    let text=null;
+    try{ if(navigator.clipboard&&navigator.clipboard.readText) text=await navigator.clipboard.readText(); }catch(e){ text=null; }
+    const v=parseHealth(text);
+    if(v.steps!=null||v.sleep!=null) return applyHealth(v,text);
+    showHealthPaste();
+  });
+  return b;
+}
+function showHealthPaste(){
+  const b=$("banner"); b.replaceChildren();
+  const inp=el("input",{type:"text",placeholder:"Paste here","aria-label":"Paste Health data"});
+  const box=el("div",{class:"banner info"},[el("div",{text:"Run your Health shortcut, then paste what it copied here."}),inp]);
+  inp.style.marginTop="8px";
+  inp.addEventListener("input",()=>{ const v=parseHealth(inp.value); if(v.steps!=null||v.sleep!=null) applyHealth(v,inp.value); });
+  b.append(box); inp.focus();
+}
+
+/* ---------- protein, snacks, still to eat ---------- */
+function proteinBase(){ const c=state.row[COL.protein]; const u=uevOf(c); return {u,num:(c&&c.formattedValue&&isNum(c.formattedValue))?+c.formattedValue:(u&&typeof u.numberValue==="number"?u.numberValue:0)}; }
+function proteinFormula(adds){
+  if(!adds.length) return null; const {u}=proteinBase(); const add=adds.map(a=>a.g).join("+");
+  if(u && "formulaValue" in u) return u.formulaValue.replace(/\s+$/,"")+"+"+add;
+  if(u && "numberValue" in u) return "="+(+u.numberValue.toFixed(6))+"+"+add;
+  return "="+add;
+}
+let refreshProtein=()=>{};
+function addProtein(g,name){ if(!(g>0)) return; state.draft.proteinAdds.push({g:+(+g).toFixed(1),name:name||null}); refreshProtein(); changed(); }
+function proteinSection(){
+  const d=state.draft; const sec=el("section",{});
+  const total=el("div",{class:"protein-total"}); const formula=el("div",{class:"formula"}); const pend=el("div",{class:"pending"});
+  refreshProtein=()=>{
+    const {u,num}=proteinBase(); const add=d.proteinAdds.reduce((s,x)=>s+x.g,0);
+    total.replaceChildren(document.createTextNode(String(+(num+add).toFixed(1))+" "),el("small",{text:"g protein"+(add?" (+"+(+add.toFixed(1))+" unsaved)":"")}));
+    const f=proteinFormula(d.proteinAdds)||(u&&u.formulaValue)||""; formula.textContent=f?("In sheet as "+f):"Nothing logged yet";
+    pend.replaceChildren(...d.proteinAdds.map((a,i)=>el("button",{type:"button","aria-label":"Remove "+a.g+" grams",text:(a.name?a.name+" ":"")+"+"+a.g+" ✕",onclick:()=>{ d.proteinAdds.splice(i,1); refreshProtein(); changed(); }})));
+  };
+  const custom=el("input",{type:"text",inputmode:"decimal",placeholder:"grams","aria-label":"Custom grams"});
+  const addCustom=()=>{ if(isNum(custom.value)){ addProtein(+custom.value); custom.value=""; } };
+  custom.addEventListener("keydown",e=>{ if(e.key==="Enter") addCustom(); });
+  const snackToggle=el("button",{class:"linkish",type:"button",text:state.snacksOpen?"Hide snacks":"My snacks"});
+  const snackBox=el("div",{class:"snacks"}); snackBox.hidden=!state.snacksOpen;
+  snackToggle.addEventListener("click",()=>{ state.snacksOpen=!state.snacksOpen; snackBox.hidden=!state.snacksOpen; snackToggle.textContent=state.snacksOpen?"Hide snacks":"My snacks"; });
+  sec.append(el("div",{class:"sh"},[el("h2",{text:"Protein"}),snackToggle]), total, formula,
+    el("div",{class:"adds"},[...[5,10,15,20,25,30].map(g=>el("button",{type:"button",text:"+"+g,onclick:()=>addProtein(g)})),
+      el("div",{class:"custom"},[custom,el("button",{type:"button",text:"Add",onclick:addCustom})])]),
+    pend, snackBox, mealsBlock());
+  drawSnacks(snackBox); refreshProtein();
+  return sec;
+}
+function drawSnacks(box){
+  box.replaceChildren();
+  const list=state.snacks.slice().sort((a,b)=>a.name.localeCompare(b.name));
+  if(!list.length) box.append(el("div",{class:"hint",text:"Add the snacks and meals you eat often, with their protein, and they'll show up here with an Add button."}));
+  else box.append(el("table",{},[el("tbody",{},list.map(s=>el("tr",{},[
+    el("td",{text:s.name}), el("td",{class:"g",text:s.g+" g"}),
+    el("td",{class:"a"},[ state.editSnacks
+      ? el("button",{type:"button","aria-label":"Remove "+s.name,text:"Remove",onclick:async()=>{ state.snacks=state.snacks.filter(x=>x.id!==s.id); drawSnacks(box); await persistSnacks(box); }})
+      : el("button",{class:"add",type:"button","aria-label":"Add "+s.name,text:"Add",onclick:()=>addProtein(s.g,s.name)}) ])
+  ])))]));
+  const nm=el("input",{type:"text",placeholder:"Snack name","aria-label":"Snack name"});
+  const g=el("input",{type:"text",inputmode:"decimal",placeholder:"g","aria-label":"Protein grams"});
+  const save=async()=>{ const name=nm.value.trim(); if(!name||!isNum(g.value)) return; const ex=state.snacks.find(x=>x.name.toLowerCase()===name.toLowerCase()); if(ex) ex.g=+g.value; else state.snacks.push({id:Date.now().toString(36),name,g:+g.value}); drawSnacks(box); await persistSnacks(box); };
+  g.addEventListener("keydown",e=>{ if(e.key==="Enter") save(); });
+  box.append(el("div",{class:"newsnack"},[nm,g,el("button",{type:"button",text:"Save",onclick:save})]));
+  box.append(el("div",{class:"sh",style:"margin-top:8px"},[
+    el("span",{class:"saved",id:"snackStatus",text:"Same name updates the grams."}),
+    list.length?el("button",{class:"linkish",type:"button",text:state.editSnacks?"Done":"Edit list",onclick:()=>{ state.editSnacks=!state.editSnacks; drawSnacks(box); }}):null
+  ]));
+}
+async function persistSnacks(box){
+  const st=()=>box.querySelector("#snackStatus");
+  try{ const r=await storeSet("snacks",{items:state.snacks}); if(st()) st().textContent=r==="synced"?"Saved, synced across your devices.":"Saved on this device."; }
+  catch(e){ if(st()) st().textContent="Saved on this device only (sync unavailable)."; }
+}
+async function loadSnacks(){ const d=await storeGet("snacks"); state.snacks=(d&&Array.isArray(d.items))?d.items:[]; const box=document.querySelector(".snacks"); if(box) drawSnacks(box); }
+
+let mealsTimer=null;
+function mealsBlock(){
+  const ta=el("textarea",{id:"meals",rows:"2",placeholder:"Still to eat today, e.g. tuna bowl for dinner, yogurt before bed","aria-label":"Still to eat today"});
+  const st=el("span",{class:"saved",id:"mealsStatus"});
+  const serial=state.serial;
+  ta.addEventListener("input",()=>{ st.textContent="Saving…"; clearTimeout(mealsTimer); mealsTimer=setTimeout(async()=>{ try{ const r=await storeSet("meals-"+serial,{text:ta.value}); if(state.serial===serial) st.textContent=r==="synced"?"Saved":"Saved on this device"; }catch(e){ st.textContent="Saved on this device only"; } },700); });
+  return el("div",{style:"margin-top:12px"},[el("div",{class:"sh",style:"margin-bottom:4px"},[el("h2",{text:"Still to eat"}),st]),ta]);
+}
+async function loadMeals(serial){ const d=await storeGet("meals-"+serial); if(state.serial!==serial) return; const ta=$("meals"); if(ta && d && typeof d.text==="string" && !ta.value) ta.value=d.text; }
+
+/* ---------- notes ---------- */
+function noteSection(title, key, col, ph){
+  const d=state.draft; const addK=key+"Add", repK=key+"Replace";
+  const existing=display(state.row[col]); const has=!isEmptyish(state.row[col]);
+  const sec=el("section",{}); const body=el("div");
+  const draw=()=>{
+    body.replaceChildren();
+    const head=el("div",{class:"sh"},[el("h2",{text:title})]);
+    if(d[repK]!=null){
+      const ta=el("textarea",{rows:"6","aria-label":"Edit whole "+title.toLowerCase()}); ta.value=d[repK]; ta.classList.add("changed");
+      ta.addEventListener("input",()=>{ d[repK]=ta.value; changed(); });
+      head.append(el("button",{class:"linkish",type:"button",text:"Cancel",onclick:()=>{ d[repK]=null; draw(); changed(); }}));
+      body.append(head, ta, el("div",{class:"hint",text:"You're editing the whole note. Saving will ask you to confirm replacing what's in the sheet."}));
+      return;
+    }
+    if(has) head.append(el("button",{class:"linkish",type:"button",text:"Edit whole note",onclick:()=>{ d[repK]=joinNote(existing,d[addK]||""); d[addK]=""; draw(); changed(); }}));
+    const paper=el("div",{class:"paper"});
+    const ta=el("textarea",{rows:"3",placeholder:ph,"aria-label":ph}); ta.value=d[addK]||"";
+    const sync=()=>{
+      const add=ta.value.trim(); ta.classList.toggle("changed",!!add);
+      if(!has && !add){ paper.className="paper empty"; paper.textContent="Nothing here yet"; return; }
+      paper.className="paper";
+      const full=joinNote(has?existing:"",add);
+      const keep=has?full.slice(0,full.length-add.length):"";
+      paper.replaceChildren(document.createTextNode(add?keep:existing), add?el("ins",{text:add}):"");
+      if(add) paper.scrollTop=paper.scrollHeight;
+    };
+    ta.addEventListener("input",()=>{ d[addK]=ta.value; sync(); changed(); }); sync();
+    body.append(head, paper, ta);
+  };
+  draw(); sec.append(body); return sec;
+}
+
+/* ---------- change set ---------- */
+function computeChanges(){
+  const d=state.draft, row=state.row, out=[];
+  for(const f of FIELDS){
+    const v=d.fields[f.key]; if(v==null||!v.trim()) continue;
+    const u=uevFor(f,v); if(!u) continue;
+    const c=row[f.col]; if(sameUEV(u,uevOf(c))) continue;
+    const after = f.type==="duration"?prettyDuration(u.numberValue*1440):("numberValue" in u && f.type==="steps")?u.numberValue.toLocaleString():v.trim();
+    out.push({col:f.col,label:f.label,before:display(c),after,uev:u,kind:isEmptyish(c)?"fill":"replace"});
+  }
+  if(d.stretch!=null){ const c=row[COL.stretch]; out.push({col:COL.stretch,label:"Stretched",before:display(c)||"empty",after:d.stretch?"TRUE":"FALSE",uev:{boolValue:d.stretch},kind:(d.stretch||isEmptyish(c))?"fill":"replace"}); }
+  for(const sp of SUPPS){ const v=d.supps[sp.col]; if(v==null) continue; const c=row[sp.col]; if(sameUEV({boolValue:v},uevOf(c))) continue; out.push({col:sp.col,label:sp.label,before:display(c)||"empty",after:v?"TRUE":"FALSE",uev:{boolValue:v},kind:(v||isEmptyish(c))?"fill":"replace"}); }
+  const pf=proteinFormula(d.proteinAdds);
+  if(pf){ const c=row[COL.protein]; out.push({col:COL.protein,label:"Protein",before:(uevOf(c)&&uevOf(c).formulaValue)||display(c)||"empty",after:pf,uev:{formulaValue:pf},kind:isEmptyish(c)?"fill":"append"}); }
+  for(const [key,col,label] of [["note",COL.note,"Note"],["pn",COL.pn,"Note to "+PARTNER]]){
+    const c=row[col], u=uevOf(c), base=(u&&u.stringValue!=null&&!isEmptyish(c))?u.stringValue:(isEmptyish(c)?"":display(c));
+    if(d[key+"Replace"]!=null){
+      const nv=d[key+"Replace"]; if(!nv.trim()||nv===base) continue;
+      out.push({col,label,before:display(c),after:nv,uev:{stringValue:nv},kind:isEmptyish(c)?"fill":((base&&nv.startsWith(base))?"append":"replace")});
+    } else if((d[key+"Add"]||"").trim()){
+      const nv=joinNote(base,d[key+"Add"]);
+      out.push({col,label,before:display(c),after:nv,uev:{stringValue:nv},kind:isEmptyish(c)?"fill":"append"});
+    }
+  }
+  return out;
+}
+function changed(){ saveDraftLocal(); updateBar(); }
+function updateBar(){
+  if(!state.draft||!state.rowNum){ $("barMsg").textContent="No changes yet"; $("reviewBtn").disabled=true; return; }
+  const n=computeChanges().length;
+  $("barMsg").textContent = n? (n+" unsaved change"+(n>1?"s":"")+", "+shortDate(state)) : "No changes yet";
+  $("reviewBtn").disabled = !n || state.busy;
+}
+
+/* ---------- review & save ---------- */
+let pendingChanges=[];
+function openReview(){
+  pendingChanges=computeChanges(); if(!pendingChanges.length) return;
+  const list=$("changeList"); list.replaceChildren();
+  $("sheetSub").textContent="Row "+state.rowNum+", "+weekday(state)+" "+fmtShort(state)+". Only these cells will change.";
+  pendingChanges.forEach(ch=>{
+    const tagText = ch.kind==="fill"?"Fills empty cell":ch.kind==="append"?"Adds to existing":"Replaces existing";
+    const box=el("div",{class:"ch"},[
+      el("div",{class:"ch-h"},[el("span",{text:ch.label}),el("span",{class:"tag"+(ch.kind==="replace"?" rep":""),text:tagText})]),
+      ch.kind!=="fill"?el("div",{class:"ba"},[el("b",{text:"Now: "}),el("span",{class:"v",text:ch.before||"empty"})]):null,
+      el("div",{class:"ba"},[el("b",{text:ch.kind==="fill"?"Will be: ":"After: "}),el("span",{class:"v",text:ch.after})])
+    ]);
+    if(ch.kind==="replace"){
+      ch.ok=false; const cb=el("input",{type:"checkbox"}); cb.addEventListener("change",()=>{ ch.ok=cb.checked; syncSaveBtn(); });
+      box.append(el("label",{class:"confirm"},[cb,el("span",{text:"Yes, replace what's in the sheet. Unticked replacements are skipped."})]));
+    } else ch.ok=true;
+    list.append(box);
+  });
+  syncSaveBtn(); $("sheetBg").classList.add("open"); $("confirmSave").focus();
+}
+function syncSaveBtn(){ const n=pendingChanges.filter(c=>c.ok).length; $("confirmSave").disabled=!n; $("confirmSave").textContent = n? ("Save "+n+" change"+(n>1?"s":"")) : "Nothing to save"; }
+function closeReview(){ $("sheetBg").classList.remove("open"); }
+
+async function doSave(){
+  const toWrite=pendingChanges.filter(c=>c.ok); if(!toWrite.length) return;
+  closeReview(); state.busy=true; updateBar(); banner("info","Saving…");
+  const snapshot=state.row.slice(), rowNum=state.rowNum, serial=state.serial;
+  const requests=toWrite.map(ch=>({updateCells:{start:{sheetId:TAB_GID,rowIndex:rowNum-1,columnIndex:ch.col},rows:[{values:[{userEnteredValue:ch.uev}]}],fields:"userEnteredValue"}}));
+  const readBack=async()=>{ const r=await readRange(TAB+"!A"+rowNum+":Q"+rowNum); return {row:padRow(r.rows[rowNum]), rev:r.rev}; };
+  const allIn=row=>toWrite.every(ch=>sameUEV(uevOf(row[ch.col]),ch.uev));
+  const fail=msg=>{ state.busy=false; updateBar(); banner("err",msg); };
+  const success=(row,rev)=>{
+    state.busy=false; clearSavedParts(toWrite); state.row=row; state.rev=rev; delete calCache[state.y+"-"+state.m];
+    const w=state.window.find(x=>x.n===rowNum); if(w) w.row=row;
+    render(); loadMeals(serial);
+    banner("ok","Saved "+toWrite.length+" change"+(toWrite.length>1?"s":"")+" to row "+rowNum+".");
+  };
+  const conflict=(row,rev)=>{
+    state.busy=false; state.row=row; state.rev=rev; render(); loadMeals(serial);
+    banner("err","Nothing was saved. This row was edited in the sheet since you opened it, so the page loaded the latest version. Your unsaved additions are kept; review them again before saving.");
+  };
+
+  // Fast path: write locked to the sheet version this row was loaded at.
+  // Google rejects it if anything in the spreadsheet changed since then.
+  let werr=null;
+  if(state.rev){ try{ await writeRequests(requests, state.rev); }catch(e){ werr=e; } } else werr={message:"no version"};
+  let a1;
+  try{ a1=await readBack(); }
+  catch(e){ return fail("Couldn't confirm whether the save went through ("+errText(e)+"). Open the sheet to check row "+rowNum+" before trying again."); }
+  const b1=uevOf(a1.row[1]);
+  if(!b1 || b1.numberValue!==serial){ state.busy=false; banner("err","Nothing was saved. Row "+rowNum+" no longer holds this date (rows may have moved). Reloading."); return loadDay(fromSerial(serial),{keepBanner:true}); }
+  if(allIn(a1.row)) return success(a1.row, a1.rev);
+  if(!rowsEqual(a1.row, snapshot)) return conflict(a1.row, a1.rev);
+
+  // The fast write was rejected because something else in the spreadsheet changed,
+  // but this row is exactly as you reviewed it, so write again locked to the version just read.
+  werr=null;
+  try{ await writeRequests(requests, a1.rev); }catch(e){ werr=e; }
+  let a2;
+  try{ a2=await readBack(); }
+  catch(e){ return fail("Couldn't confirm whether the save went through ("+errText(e)+"). Open the sheet to check row "+rowNum+" before trying again."); }
+  if(allIn(a2.row)) return success(a2.row, a2.rev);
+  if(rowsEqual(a2.row, snapshot)){ state.rev=a2.rev; return fail("Nothing was saved"+(werr&&werr.code?(": "+errText(werr)):"")+". The spreadsheet was being edited at the same moment, so Google rejected the write to be safe. Your row is untouched. Tap Review and save to try again."); }
+  return conflict(a2.row, a2.rev);
+}
+function clearSavedParts(written){
+  const d=state.draft; const cols=new Set(written.map(w=>w.col));
+  for(const f of FIELDS) if(cols.has(f.col)) delete d.fields[f.key];
+  if(cols.has(COL.stretch)) d.stretch=null;
+  for(const sp of SUPPS) if(cols.has(sp.col)) delete d.supps[sp.col];
+  if(cols.has(COL.protein)) d.proteinAdds=[];
+  if(cols.has(COL.note)){ d.noteAdd=""; d.noteReplace=null; }
+  if(cols.has(COL.pn)){ d.pnAdd=""; d.pnReplace=null; }
+  saveDraftLocal();
+}
+
+/* ---------- Apple Health via Google Form responses (separate spreadsheet, read-only) ---------- */
+let HEALTH_SHEET="";
+let healthCache=null, healthAt=0;
+async function healthRows(){
+  if(!HEALTH_SHEET) return {};
+  if(healthCache && Date.now()-healthAt<60000) return healthCache;
+  const res=await mcp.callTool(SERVER,"get_values",{spreadsheetId:HEALTH_SHEET, range:"A1:E3000"},{cache:false});
+  const p=parsePayload(res); const vals=(p&&p.values)||[];
+  const head=(vals[0]||[]).map(h=>String(h).toLowerCase());
+  const iTs=head.findIndex(h=>/timestamp/.test(h)), iDate=head.findIndex(h=>/date/.test(h)&&!/timestamp/.test(h)), iSteps=head.findIndex(h=>/steps/.test(h)), iSleep=head.findIndex(h=>/sleep/.test(h));
+  const byDay={};
+  vals.slice(1).forEach(r=>{ const s=parseShort(r[iDate]); if(s==null) return; byDay[s]={ts:iTs>=0?r[iTs]:"", steps:r[iSteps], sleep:r[iSleep]}; }); // later rows win
+  healthCache=byDay; healthAt=Date.now(); return byDay;
+}
+async function applyHealthAuto(serial, token){
+  let h;
+  try{ h=(await healthRows())[serial]; }
+  catch(e){ if(token===loadToken && e && (e.code==="tool_error")) banner("info","The log can't read your Health responses spreadsheet. Share it (Viewer is enough) with the Google account you sign in with, or fix the link in Settings."); return; }
+  if(!h || token!==loadToken || state.serial!==serial || !state.draft) return;
+  const vals=parseHealth("steps="+(h.steps||"")+" sleep="+(h.sleep||""));
+  const filled=[], newer=[];
+  for(const key of ["steps","sleep"]){
+    const v=vals[key]; if(v==null) continue;
+    if(key==="steps"&&v>60000 || key==="sleep"&&v>16) continue;
+    const f=F[key], cell=state.row[f.col], inp=document.getElementById("f-"+key);
+    if(!inp || state.draft.fields[key]!=null) continue;
+    if(isEmptyish(cell)){ inp.value=String(v); inp.dispatchEvent(new Event("input")); filled.push(key==="steps"?v.toLocaleString()+" steps":v+" hrs sleep"); }
+    else if(!sameUEV(uevFor(f,String(v)),uevOf(cell))) newer.push({key,v});
+  }
+  const when=h.ts?" (sent "+h.ts+")":"";
+  if(filled.length) banner("ok","Filled in "+filled.join(" and ")+" from Apple Health"+when+". Review and save when ready.");
+  else if(newer.length) banner("info","Apple Health has different numbers for this day"+when+": "+newer.map(n=>n.key==="steps"?n.v.toLocaleString()+" steps":n.v+" hrs sleep").join(" and ")+".","Use these",()=>{
+    newer.forEach(n=>{ const inp=document.getElementById("f-"+n.key); if(inp){ inp.value=String(n.v); inp.dispatchEvent(new Event("input")); } }); banner(null);
+  });
+}
+
+/* ---------- Partner tab: past days with an empty partner note, oldest first ---------- */
+let pnItems=null, pnShown=0, pnDirty=false;
+const PN_PAGE=15;
+async function loadPn(force){
+  if(pnItems && !force) return pnItems;
+  const t=todayParts(), todayS=serialOf(t.y,t.m,t.d), last=todayS-45067+2;
+  const res=await mcp.callTool(SERVER,"get_values",{spreadsheetId:SHEET_ID, range:TAB+"!A2:I"+last},{cache:false});
+  const p=parsePayload(res); const vals=(p&&p.values)||[];
+  const out=[];
+  vals.forEach((r,i)=>{ const s=parseShort(r[1]); if(s==null||s>todayS) return; const w=r[8]; if(w!=null && String(w).trim()!=="") return; out.push({rowNum:i+2,serial:s,act:r[2]||"",note:r[7]||""}); });
+  out.sort((a,b)=>a.serial-b.serial);
+  pnItems=out; updatePnCount(); return out;
+}
+function updatePnCount(){ const n=pnItems?pnItems.filter(x=>!x.saved).length:null; $("pnCount").textContent=n==null?"":"("+n+")"; $("pnSub").textContent=n==null?"":(n?n+" days to go":"All caught up"); }
+async function showPn(){
+  $("tabDay").setAttribute("aria-selected","false"); $("tabPn").setAttribute("aria-selected","true");
+  $("dayView").hidden=true; $("bar").hidden=true; $("pnView").hidden=false;
+  const list=$("pnList");
+  if(!pnItems){ list.replaceChildren(el("div",{class:"skel"}),el("div",{class:"skel"})); }
+  try{ await loadPn(); }catch(e){ list.replaceChildren(); $("pnBanner").replaceChildren(el("div",{class:"banner err",text:errText(e)})); return; }
+  if(!list.querySelector(".pn-card")){ list.replaceChildren(); pnShown=0; morePn(); }
+}
+function showDay(){
+  $("tabDay").setAttribute("aria-selected","true"); $("tabPn").setAttribute("aria-selected","false");
+  $("pnView").hidden=true; $("dayView").hidden=false; $("bar").hidden=false;
+  if(pnDirty && state.serial){ pnDirty=false; loadDay(fromSerial(state.serial)); }
+}
+function morePn(){
+  const list=$("pnList"); const old=list.querySelector(".pn-more"); if(old) old.remove();
+  const pending=pnItems.filter(x=>!x.saved);
+  if(!pending.length){ list.append(el("section",{},[el("h2",{text:"All caught up"}),el("div",{class:"hint",text:"Every past day has a note to "+PARTNER+"."})])); return; }
+  pnItems.slice(pnShown, pnShown+PN_PAGE).forEach(it=>{ if(!it.saved) list.append(pnCard(it)); });
+  pnShown+=PN_PAGE;
+  if(pnShown<pnItems.length) list.append(el("button",{class:"btn ghost pn-more",style:"width:100%;margin-top:10px",text:"Show "+Math.min(PN_PAGE,pnItems.length-pnShown)+" more",onclick:morePn}));
+}
+function pnCard(it){
+  const pd=fromSerial(it.serial);
+  const draft=loadDraftLocal(it.serial);
+  const ta=el("textarea",{rows:"2",placeholder:"Note to "+PARTNER,"aria-label":"Note to "+PARTNER+" for "+longDate(pd)}); ta.value=draft.pnAdd||"";
+  const msg=el("span",{class:"msg"});
+  const btn=el("button",{class:"btn",type:"button",text:"Save"}); btn.disabled=!ta.value.trim();
+  ta.addEventListener("input",()=>{ btn.disabled=!ta.value.trim(); const d=loadDraftLocal(it.serial); d.pnAdd=ta.value; try{ if(draftEmpty(d)) localStorage.removeItem(draftKey(it.serial)); else localStorage.setItem(draftKey(it.serial),JSON.stringify(d)); }catch(e){} });
+  const ctx=it.note&&!PLACEHOLDERS.has(String(it.note).trim())?el("div",{class:"pn-ctx",text:it.note,title:"Tap to expand"}):null;
+  if(ctx) ctx.addEventListener("click",()=>ctx.classList.toggle("open"));
+  const card=el("section",{class:"pn-card"},[
+    el("div",{class:"wd-line"},[el("strong",{text:new Date(pd.y,pd.m-1,pd.d).toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric",year:"numeric"})}),
+      el("a",{href:"https://docs.google.com/spreadsheets/d/"+SHEET_ID+"/edit#gid="+TAB_GID+"&range=I"+it.rowNum,target:"_blank",rel:"noopener",text:"Row "+it.rowNum})]),
+    it.act&&!PLACEHOLDERS.has(String(it.act).trim())?el("div",{class:"pn-act",text:it.act}):null,
+    ctx, ta, el("div",{class:"pn-row"},[msg,btn])
+  ]);
+  btn.addEventListener("click",async()=>{
+    const text=ta.value.trim(); if(!text) return;
+    btn.disabled=true; ta.disabled=true; msg.className="msg"; msg.textContent="Saving…";
+    const r=await savePnCell(it, text);
+    if(r.ok){
+      it.saved=true; pnDirty=true; updatePnCount();
+      const d=loadDraftLocal(it.serial); d.pnAdd=""; try{ if(draftEmpty(d)) localStorage.removeItem(draftKey(it.serial)); else localStorage.setItem(draftKey(it.serial),JSON.stringify(d)); }catch(e){}
+      card.classList.add("done"); msg.textContent="Saved to row "+it.rowNum;
+      setTimeout(()=>{ card.remove(); if(!pnItems.some(x=>!x.saved)) morePn(); },900);
+    } else {
+      msg.className="msg err"; msg.textContent=r.msg; ta.disabled=false; btn.disabled=false;
+      if(r.taken){ it.saved=true; updatePnCount(); btn.disabled=true; ta.disabled=true; }
+    }
+  });
+  return card;
+}
+async function savePnCell(it, text){
+  const rowNum=it.rowNum;
+  let fresh;
+  try{ fresh=await readRange(TAB+"!A"+rowNum+":Q"+rowNum); }catch(e){ return {ok:false,msg:"Not saved. "+errText(e)}; }
+  const row=padRow(fresh.rows[rowNum]);
+  const b=uevOf(row[1]);
+  if(!b || b.numberValue!==it.serial) return {ok:false,taken:true,msg:"Not saved. Row "+rowNum+" no longer holds this date, so rows may have moved. Reload the page."};
+  if(!isBlank(row[COL.pn])) return {ok:false,taken:true,msg:"Not saved. This day already has a partner note now: “"+display(row[COL.pn]).slice(0,80)+"”"};
+  const uev={stringValue:text};
+  let werr=null;
+  try{ await writeRequests([{updateCells:{start:{sheetId:TAB_GID,rowIndex:rowNum-1,columnIndex:COL.pn},rows:[{values:[{userEnteredValue:uev}]}],fields:"userEnteredValue"}}], fresh.rev); }catch(e){ werr=e; }
+  let after;
+  try{ after=padRow((await readRange(TAB+"!A"+rowNum+":Q"+rowNum)).rows[rowNum]); }catch(e){ return {ok:false,msg:"Couldn't confirm the save ("+errText(e)+"). Check row "+rowNum+" before trying again."}; }
+  if(sameUEV(uevOf(after[COL.pn]),uev)) return {ok:true};
+  if(isBlank(after[COL.pn])) return {ok:false,msg:"Not saved"+(werr?(": "+errText(werr)):"")+". The sheet was being edited at the same moment, so Google rejected it to be safe. Tap Save again."};
+  return {ok:false,taken:true,msg:"Not saved. Someone just wrote a partner note here: “"+display(after[COL.pn]).slice(0,80)+"”"};
+}
+
+/* ---------- calendar ---------- */
+const calCache={}; let calY=0, calM=0;
+async function monthInfo(y,m){
+  const key=y+"-"+m; if(calCache[key]) return calCache[key];
+  const s1=serialOf(y,m,1), sN=serialOf(m===12?y+1:y,m===12?1:m+1,1)-1;
+  const r1=Math.max(2,s1-45067-3), rN=sN-45067+3; const info={};
+  if(rN>=2){
+    const r=await readRange(TAB+"!A"+r1+":H"+rN);
+    for(const n in r.rows){ const row=padRow(r.rows[n]); const u=uevOf(row[1]); if(u&&typeof u.numberValue==="number") info[u.numberValue]={act:display(row[2]),noNote:isEmptyish(row[COL.note])}; }
+  }
+  calCache[key]=info; return info;
+}
+function openCal(){ calY=state.y; calM=state.m; drawCal(); $("calBg").classList.add("open"); }
+function closeCal(){ $("calBg").classList.remove("open"); }
+function shiftCal(n){ calM+=n; if(calM<1){calM=12;calY--;} if(calM>12){calM=1;calY++;} drawCal(); }
+async function drawCal(){
+  const y=calY, m=calM; const grid=$("calGrid");
+  $("calTitle").textContent=new Date(y,m-1,1).toLocaleDateString(undefined,{month:"long",year:"numeric"});
+  const t=todayParts(), todayS=serialOf(t.y,t.m,t.d);
+  const cells=(info)=>{
+    const out=[]; const lead=new Date(y,m-1,1).getDay(); const days=new Date(y,m,0).getDate();
+    for(let i=0;i<lead;i++) out.push(el("span"));
+    for(let d=1;d<=days;d++){
+      const s=serialOf(y,m,d), it=info&&info[s];
+      const cls=["cd"]; if(info&&!it&&s<FIRST_SERIAL) cls.push("none");
+      if(it&&it.noNote&&s<todayS) cls.push("blank");
+      if(s===todayS) cls.push("today");
+      const b=el("button",{class:cls.join(" "),type:"button","aria-current":s===state.serial?"date":false,"aria-label":longDate({y,m,d})+(it&&it.noNote&&s<todayS?", no note yet":""),onclick:()=>{ if(s<FIRST_SERIAL) return; closeCal(); go({y,m,d}); }},[document.createTextNode(String(d)),el("span",{class:"z"})]);
+      if(it&&it.act&&!PLACEHOLDERS.has(it.act)) b.style.setProperty("--z","var(--"+zoneOf(it.act)+")");
+      out.push(b);
+    }
+    return out;
+  };
+  grid.replaceChildren(...cells(calCache[y+"-"+m]||null));
+  if(!calCache[y+"-"+m]){
+    try{ const info=await monthInfo(y,m); if(calY===y&&calM===m) grid.replaceChildren(...cells(info)); }
+    catch(e){ if(calY===y&&calM===m) $("calLegend").textContent="Couldn't load highlights: "+errText(e); }
+  }
+}
+
+/* ---------- wiring ---------- */
+const go = p => { if(mcp) loadDay(p); };
+$("prev").addEventListener("click",()=>go(fromSerial(state.serial-1)));
+$("next").addEventListener("click",()=>go(fromSerial(state.serial+1)));
+$("todayBtn").addEventListener("click",()=>go(todayParts()));
+$("jumpBtn").addEventListener("click",()=>{ if(mcp) openCal(); });
+$("calPrev").addEventListener("click",()=>shiftCal(-1));
+$("calNext").addEventListener("click",()=>shiftCal(1));
+$("calToday").addEventListener("click",()=>{ closeCal(); go(todayParts()); });
+$("calBg").addEventListener("click",e=>{ if(e.target===$("calBg")) closeCal(); });
+$("reviewBtn").addEventListener("click",openReview);
+$("tabDay").addEventListener("click",showDay);
+$("tabPn").addEventListener("click",()=>{ if(mcp) showPn(); });
+$("cancelSave").addEventListener("click",closeReview);
+$("confirmSave").addEventListener("click",doSave);
+$("sheetBg").addEventListener("click",e=>{ if(e.target===$("sheetBg")) closeReview(); });
+document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeReview(); closeCal(); } });
+
+const t0=todayParts(); state.serial=serialOf(t0.y,t0.m,t0.d);
+$("dayTitle").textContent=weekday(t0); $("jumpText").textContent=longDate(t0);
+(async()=>{
+  importSetupFromHash(); loadConfig(); loadSnacks();
+  if(!getClientId()||!SHEET_ID||!TAB){ showSetup(); return; }
+  applyPartnerLabels();
+  const start=async()=>{ mcp=SheetsAPI; try{ await resolveTab(); }catch(e){ $("main").replaceChildren(); banner("err",errText(e),"Open Settings",showSetup); return; } loadDay(t0); loadPn().catch(()=>{}); };
+  Auth.load();
+  if(Auth.valid()) return start();
+  showSignIn(start);
+})();
+})();
+</script>
+</body>
+</html>
