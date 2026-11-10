@@ -186,6 +186,7 @@ td.a button.add{background:var(--accent);color:var(--accent-ink)}
 .tabs button[aria-selected="true"]{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(0,0,0,.08)}
 .tabs .count{font-weight:500;opacity:.8}
 .pn-top{display:flex;align-items:baseline;justify-content:space-between;gap:10px;margin:4px 2px 0}
+.pn-ctl{display:flex;gap:8px;margin:8px 2px 2px}
 .pn-top h1{font-size:24px;font-weight:800;margin:0;letter-spacing:-.01em}
 .pn-card .wd-line{display:flex;justify-content:space-between;gap:8px;align-items:baseline}
 .pn-card .wd-line strong{font-size:16px}
@@ -225,6 +226,7 @@ td.a button.add{background:var(--accent);color:var(--accent-ink)}
   </div>
   <div id="pnView" hidden>
     <div class="pn-top"><h1 id="pnTitle">Notes</h1><span class="hint" id="pnSub"></span></div>
+    <div class="pn-ctl" id="pnCtl"></div>
     <div id="pnBanner"></div>
     <div id="pnList"></div>
   </div>
@@ -1030,7 +1032,25 @@ async function applyHealthAuto(serial, token){
 }
 
 /* ---------- Partner tab: past days with an empty partner note, oldest first ---------- */
-let pnItems=null, pnShown=0, pnDirty=false;
+let pnItems=null, pnShown=0, pnDirty=false, pnSeq=null;
+let pnOrder=(()=>{ try{ return localStorage.getItem("daily:pnOrder")==="shuffle"?"shuffle":"oldest"; }catch(e){ return "oldest"; } })();
+function buildPnSeq(){
+  const pend=pnItems.filter(x=>!x.saved);
+  if(pnOrder==="shuffle"){ for(let i=pend.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [pend[i],pend[j]]=[pend[j],pend[i]]; } }
+  else pend.sort((a,b)=>a.serial-b.serial);
+  pnSeq=pend;
+}
+function setPnOrder(mode){
+  pnOrder=mode; try{ localStorage.setItem("daily:pnOrder",mode); }catch(e){}
+  renderPnControls(); if(!pnItems) return;
+  const list=$("pnList"); list.replaceChildren(); pnShown=0; buildPnSeq(); morePn(); window.scrollTo(0,0);
+}
+function renderPnControls(){
+  const sh=pnOrder==="shuffle";
+  $("pnCtl").replaceChildren(
+    el("button",{class:"pill",type:"button","aria-pressed":String(sh),text:sh?"Shuffle again":"Shuffle",onclick:()=>setPnOrder("shuffle")}),
+    el("button",{class:"pill",type:"button","aria-pressed":String(!sh),text:"Oldest first",onclick:()=>{ if(pnOrder!=="oldest") setPnOrder("oldest"); }}));
+}
 const PN_PAGE=15;
 async function loadPn(force){
   if(pnItems && !force) return pnItems;
@@ -1049,7 +1069,8 @@ async function showPn(){
   const list=$("pnList");
   if(!pnItems){ list.replaceChildren(el("div",{class:"skel"}),el("div",{class:"skel"})); }
   try{ await loadPn(); }catch(e){ list.replaceChildren(); $("pnBanner").replaceChildren(el("div",{class:"banner err",text:errText(e)})); return; }
-  if(!list.querySelector(".pn-card")){ list.replaceChildren(); pnShown=0; morePn(); }
+  renderPnControls();
+  if(!list.querySelector(".pn-card")){ list.replaceChildren(); pnShown=0; buildPnSeq(); morePn(); }
 }
 function showDay(){
   $("tabDay").setAttribute("aria-selected","true"); $("tabPn").setAttribute("aria-selected","false");
@@ -1060,9 +1081,10 @@ function morePn(){
   const list=$("pnList"); const old=list.querySelector(".pn-more"); if(old) old.remove();
   const pending=pnItems.filter(x=>!x.saved);
   if(!pending.length){ list.append(el("section",{},[el("h2",{text:"All caught up"}),el("div",{class:"hint",text:"Every past day has a note to "+PARTNER+"."})])); return; }
-  pnItems.slice(pnShown, pnShown+PN_PAGE).forEach(it=>{ if(!it.saved) list.append(pnCard(it)); });
+  if(!pnSeq) buildPnSeq();
+  pnSeq.slice(pnShown, pnShown+PN_PAGE).forEach(it=>{ if(!it.saved) list.append(pnCard(it)); });
   pnShown+=PN_PAGE;
-  if(pnShown<pnItems.length) list.append(el("button",{class:"btn ghost pn-more",style:"width:100%;margin-top:10px",text:"Show "+Math.min(PN_PAGE,pnItems.length-pnShown)+" more",onclick:morePn}));
+  if(pnShown<pnSeq.length) list.append(el("button",{class:"btn ghost pn-more",style:"width:100%;margin-top:10px",text:"Show "+Math.min(PN_PAGE,pnSeq.length-pnShown)+" more",onclick:morePn}));
 }
 function pnCard(it){
   const pd=fromSerial(it.serial);
