@@ -90,6 +90,8 @@ h2{font-size:15px;font-weight:700;margin:0}
 .todo .del{flex:none;border:0;background:none;color:var(--muted);font-size:16px;padding:2px 4px}
 .todo .new input::placeholder{color:var(--muted)}
 .plan-foot{display:flex;justify-content:space-between;align-items:center;margin-top:6px;min-height:18px}
+.plan.collapsed .todo-body,.plan.collapsed .todo-reset,.plan:not(.collapsed) .todo-count{display:none}
+.plan.collapsed .sh{margin:0}
 .plan-act{font-weight:700;font-size:15px}
 .plan-act span{font-weight:500;color:var(--muted)}
 .plan-note{white-space:pre-wrap;margin-top:4px;max-height:200px;overflow:auto}
@@ -711,7 +713,9 @@ function todoCard(){
   const fromSheet=()=>splitItems(sheetNote).map(t=>({t,done:false}));
   let items=fromSheet();
   const list=el("ul",{class:"todo"}); const st=el("span",{class:"saved"});
-  const reset=el("button",{class:"linkish",type:"button",text:"Reset to sheet's note"});
+  const reset=el("button",{class:"linkish todo-reset",type:"button",text:"Reset to sheet's note"});
+  const count=el("span",{class:"saved todo-count"});
+  const tally=()=>{ const live=items.filter(i=>i.t.trim()); count.textContent=live.length?live.filter(i=>i.done).length+" of "+live.length+" done":""; };
   const same=()=>items.length===splitItems(sheetNote).length && items.every((it,i)=>!it.done && it.t===splitItems(sheetNote)[i]);
   const persist=()=>{ reset.hidden=same(); st.textContent="Saving…"; clearTimeout(todoTimer); todoTimer=setTimeout(async()=>{ try{ await storeSet("todo-"+serial,{items:items.filter(i=>i.t.trim())}); if(state.serial===serial) st.textContent="Saved"; }catch(e){ st.textContent="Saved on this device"; } },500); };
   const draw=(focusIdx)=>{
@@ -720,7 +724,7 @@ function todoCard(){
       const tick=el("button",{class:"tick",type:"button",role:"checkbox","aria-checked":String(it.done),"aria-label":"Done: "+it.t,text:"✓"});
       const inp=el("input",{type:"text","aria-label":"To-do item"}); inp.value=it.t;
       const li=el("li",{class:it.done?"done":""},[tick,inp,el("button",{class:"del",type:"button","aria-label":"Delete "+it.t,text:"✕",onclick:()=>{ items.splice(i,1); draw(); persist(); }})]);
-      tick.addEventListener("click",()=>{ it.done=!it.done; tick.setAttribute("aria-checked",String(it.done)); li.classList.toggle("done",it.done); persist(); });
+      tick.addEventListener("click",()=>{ it.done=!it.done; tick.setAttribute("aria-checked",String(it.done)); li.classList.toggle("done",it.done); tally(); persist(); });
       inp.addEventListener("input",()=>{ it.t=inp.value; persist(); });
       inp.addEventListener("blur",()=>{ if(!it.t.trim()){ items.splice(items.indexOf(it),1); draw(); persist(); } });
       inp.addEventListener("keydown",e=>{ if(e.key==="Enter"){ e.preventDefault(); items.splice(i+1,0,{t:"",done:false}); draw(i+1); } });
@@ -730,6 +734,7 @@ function todoCard(){
     const add=el("input",{type:"text",placeholder:"Add a to-do","aria-label":"Add a to-do"});
     add.addEventListener("keydown",e=>{ if(e.key==="Enter" && add.value.trim()){ items.push({t:add.value.trim(),done:false}); draw(); persist(); requestAnimationFrame(()=>{ const n=list.querySelector(".new input"); if(n) n.focus(); }); } });
     list.append(el("li",{class:"new"},[el("span",{class:"tick",style:"border-style:dashed"}),add]));
+    tally();
   };
   reset.addEventListener("click",()=>{ items=fromSheet(); draw(); persist(); });
   reset.hidden=true; draw();
@@ -740,7 +745,16 @@ function todoCard(){
     else return;
     reset.hidden=same(); draw();
   });
-  return el("div",{class:"plan"},[el("div",{class:"sh"},[el("h2",{text:"To-do"}),reset]), list, el("div",{class:"plan-foot"},[st,el("span")])]);
+  // Collapsed state is per device and shared across days.
+  const toggle=el("button",{class:"linkish",type:"button"});
+  const card=el("div",{class:"plan"},[
+    el("div",{class:"sh"},[el("div",{style:"display:flex;align-items:baseline;gap:8px"},[el("h2",{text:"To-do"}),count]),el("div",{style:"display:flex;align-items:center;gap:14px"},[reset,toggle])]),
+    el("div",{class:"todo-body"},[list, el("div",{class:"plan-foot"},[st,el("span")])])]);
+  const setCollapsed=v=>{ card.classList.toggle("collapsed",v); toggle.textContent=v?"Show":"Hide"; toggle.setAttribute("aria-expanded",String(!v)); };
+  let collapsed=false; try{ collapsed=localStorage.getItem("daily:todoCollapsed")==="1"; }catch(e){}
+  setCollapsed(collapsed);
+  toggle.addEventListener("click",()=>{ collapsed=!collapsed; setCollapsed(collapsed); try{ localStorage.setItem("daily:todoCollapsed",collapsed?"1":"0"); }catch(e){} });
+  return card;
 }
 
 /* ---------- Apple Health (via iPhone Shortcut → clipboard) ---------- */
