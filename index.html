@@ -294,6 +294,7 @@ const SCOPE = "https://www.googleapis.com/auth/spreadsheets";
 const API = "https://sheets.googleapis.com/v4/spreadsheets/";
 const GRID_FIELDS = "sheets(properties(sheetId,title),data(startRow,startColumn,rowData(values(userEnteredValue,formattedValue))))";
 function getClientId(){ try{ return CLIENT_ID || localStorage.getItem("daily:clientId") || ""; }catch(e){ return CLIENT_ID; } }
+let refreshing=null, refreshPauseUntil=0;
 const Auth = {
   token:null, exp:0, client:null,
   load(){ try{ const t=JSON.parse(localStorage.getItem("daily:token")||"null"); if(t&&t.exp>Date.now()+60000){ this.token=t.token; this.exp=t.exp; } }catch(e){} },
@@ -312,6 +313,8 @@ const Auth = {
 };
 const SheetsAPI = {
   async callTool(server, tool, args){
+    if(!navigator.onLine) throw {code:"server_unavailable"};
+    if(!Auth.valid() && refreshing) await refreshing;
     const tok=Auth.valid(); if(!tok){ showReauth(); throw {code:"needs_reauth"}; }
     const opt={headers:{Authorization:"Bearer "+tok}}; let url;
     if(tool==="get_spreadsheet"){ const q=new URLSearchParams(); (args.ranges||[]).forEach(r=>q.append("ranges",r)); q.set("includeGridData","true"); q.set("fields",GRID_FIELDS); url=API+args.spreadsheetId+"?"+q; }
@@ -387,13 +390,20 @@ function showSetup(){
       c.sheetId?el("button",{class:"btn ghost",type:"button",text:"Cancel",onclick:()=>location.reload()}):null])]));
 }
 async function resolveTab(){
-  const res=await mcp.callTool(SERVER,"get_sheet_props",{spreadsheetId:SHEET_ID});
+  let res;
+  try{ res=await mcp.callTool(SERVER,"get_sheet_props",{spreadsheetId:SHEET_ID}); }
+  catch(e){
+    let c=null; try{ c=JSON.parse(localStorage.getItem("daily:tabGid")||"null"); }catch(x){}
+    if(e&&e.code==="server_unavailable"&&c&&c.sheet===SHEET_ID&&c.tab===TAB){ TAB_GID=c.id; return; }
+    throw e;
+  }
   const p=parsePayload(res); const sh=((p&&p.sheets)||[]).find(x=>x.properties&&x.properties.title===TAB);
   if(!sh) throw {code:"tool_error",message:"There's no tab named \u201c"+TAB+"\u201d in that spreadsheet. Fix it in Settings"};
   TAB_GID=sh.properties.sheetId;
+  try{ localStorage.setItem("daily:tabGid",JSON.stringify({sheet:SHEET_ID,tab:TAB,id:TAB_GID})); }catch(e){}
 }
 /* ================================================================================================ */
-const state = { y:0,m:0,d:0, serial:0, rowNum:null, row:[], rev:null, window:[], draft:null, busy:false, snacks:[], snacksOpen:false, editSnacks:false };
+const state = { y:0,m:0,d:0, serial:0, rowNum:null, row:[], rev:null, window:[], draft:null, busy:false, offline:false, snacks:[], snacksOpen:false, editSnacks:false };
 
 const $ = id => document.getElementById(id);
 const el = (tag, attrs, kids) => { const e=document.createElement(tag); if(attrs) for(const k in attrs){ const v=attrs[k]; if(k==="text") e.textContent=v; else if(k==="class") e.className=v; else if(k.startsWith("on")) e.addEventListener(k.slice(2),v); else if(v!==false && v!=null) e.setAttribute(k,v===true?"":v); } (kids||[]).forEach(c=>c!=null&&e.append(c)); return e; };
@@ -470,6 +480,18 @@ function saveDraftLocal(){ try{ if(draftEmpty(state.draft)) localStorage.removeI
 function loadDraftLocal(serial){ let d=blankDraft(); try{ const s=localStorage.getItem(draftKey(serial)); if(s) d=Object.assign(d, JSON.parse(s)); }catch(e){} if(d.fields.distance!=null){ d.fields.steps=d.fields.distance; delete d.fields.distance; } d.supps=d.supps||{}; d.proteinAdds=(d.proteinAdds||[]).map(x=>typeof x==="number"?{g:x}:x); return d; }
 function hasDraft(serial){ try{ return !!localStorage.getItem(draftKey(serial)); }catch(e){ return false; } }
 
+/* ---------- last-read rows for offline viewing (display only; saving always re-reads the sheet) ---------- */
+const ROWS_KEY="daily:rows";
+function cacheDay(){
+  try{
+    const all=JSON.parse(localStorage.getItem(ROWS_KEY)||"{}");
+    all[state.serial]={sheet:SHEET_ID,tab:TAB,rowNum:state.rowNum,row:state.row,window:state.window,at:Date.now()};
+    const keep=Object.keys(all).sort((a,b)=>all[b].at-all[a].at).slice(0,20);
+    localStorage.setItem(ROWS_KEY,JSON.stringify(Object.fromEntries(keep.map(k=>[k,all[k]]))));
+  }catch(e){}
+}
+function cachedDay(serial){ try{ const c=JSON.parse(localStorage.getItem(ROWS_KEY)||"{}")[serial]; return c&&c.sheet===SHEET_ID&&c.tab===TAB?c:null; }catch(e){ return null; } }
+
 /* ---------- page storage (snacks, still-to-eat): synced via the page's private store ---------- */
 async function storeGet(name){
   if(db&&uid){ try{ const s=await db.doc("data/users/"+uid+"/"+name).get(); return s.exists?s.data():null; }catch(e){} }
@@ -527,7 +549,8 @@ async function loadDay(p, opts){
   $("dayTitle").textContent=weekday(p); $("jumpText").textContent=longDate(p); $("sheetLink").replaceChildren();
   if(!opts.keepBanner) banner(null);
   $("main").replaceChildren(el("div",{class:"skel"}),el("div",{class:"skel"}));
-  state.rowNum=null; updateBar();
+  state.rowNum=null; state.offline=false; updateBar();
+  let cached=null;
   try{
     let found = state.serial>=FIRST_SERIAL && await findRow(state.serial-45067);
     if(token!==loadToken) return;
@@ -538,9 +561,15 @@ async function loadDay(p, opts){
       if(token!==loadToken) return;
       if(!found){ renderNoRow(p, vals); return; }
     }
-  }catch(e){ if(token===loadToken) renderLoadError(e); return; }
+  }catch(e){
+    if(token!==loadToken) return;
+    cached=(e&&e.code==="server_unavailable")?cachedDay(state.serial):null;
+    if(!cached){ renderLoadError(e); return; }
+    state.rowNum=cached.rowNum; state.row=cached.row; state.window=cached.window; state.rev=null; state.offline=true;
+  }
   state.draft=loadDraftLocal(state.serial);
   render();
+  if(cached) banner("info","You're offline, so this is the copy from "+new Date(cached.at).toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"})+". Your edits are kept on this device. Save once you're back online.","Try again",()=>loadDay(p));
   loadMeals(state.serial);
   applyHealthAuto(state.serial, token);
 }
@@ -553,6 +582,7 @@ async function findRow(guess){
     if(u && u.numberValue===state.serial){
       state.rowNum=n; state.row=padRow(r.rows[n]); state.rev=r.rev;
       state.window=[]; for(let k=n-6;k<=n;k++) if(k>=2) state.window.push({n:k,row:padRow(r.rows[k]||[])});
+      cacheDay();
       return true;
     }
   }
@@ -598,7 +628,7 @@ async function addRows(lastRow, lastSerial, gap, p){
     banner("err","Nothing was added"+(werr?(": "+errText(werr)):"")+". The sheet may have been edited at the same moment. Try again.");
   }catch(e){ banner("err","Nothing was added. "+errText(e)); }
 }
-function renderLoadError(e){ $("main").replaceChildren(); banner("err", errText(e), "Try again", ()=>loadDay({y:state.y,m:state.m,d:state.d})); }
+function renderLoadError(e){ $("main").replaceChildren(); if(e&&e.code==="needs_reauth") return; banner("err", errText(e), "Try again", ()=>loadDay({y:state.y,m:state.m,d:state.d})); }
 
 /* ---------- render ---------- */
 const TRACES={
@@ -928,8 +958,8 @@ function changed(){ saveDraftLocal(); updateBar(); }
 function updateBar(){
   if(!state.draft||!state.rowNum){ $("barMsg").textContent="No changes yet"; $("reviewBtn").disabled=true; return; }
   const n=computeChanges().length;
-  $("barMsg").textContent = n? (n+" unsaved change"+(n>1?"s":"")+", "+shortDate(state)) : "No changes yet";
-  $("reviewBtn").disabled = !n || state.busy;
+  $("barMsg").textContent = n? (n+" unsaved change"+(n>1?"s":"")+", "+shortDate(state)+(state.offline?". Save when online":"")) : "No changes yet";
+  $("reviewBtn").disabled = !n || state.busy || state.offline;
 }
 
 /* ---------- review & save ---------- */
@@ -958,6 +988,8 @@ function closeReview(){ $("sheetBg").classList.remove("open"); }
 
 async function doSave(){
   const toWrite=pendingChanges.filter(c=>c.ok); if(!toWrite.length) return;
+  if(!Auth.valid() && refreshing) await refreshing;
+  if(!Auth.valid()){ closeReview(); showReauth(); return; }
   closeReview(); state.busy=true; updateBar(); banner("info","Saving…");
   const snapshot=state.row.slice(), rowNum=state.rowNum, serial=state.serial;
   const requests=toWrite.map(ch=>({updateCells:{start:{sheetId:TAB_GID,rowIndex:rowNum-1,columnIndex:ch.col},rows:[{values:[{userEnteredValue:ch.uev}]}],fields:"userEnteredValue"}}));
@@ -967,6 +999,7 @@ async function doSave(){
   const success=(row,rev)=>{
     state.busy=false; clearSavedParts(toWrite); state.row=row; state.rev=rev; delete calCache[state.y+"-"+state.m];
     const w=state.window.find(x=>x.n===rowNum); if(w) w.row=row;
+    cacheDay();
     render(); loadMeals(serial);
     banner("ok","Saved "+toWrite.length+" change"+(toWrite.length>1?"s":"")+" to row "+rowNum+".");
   };
@@ -1221,6 +1254,16 @@ $("cancelSave").addEventListener("click",closeReview);
 $("confirmSave").addEventListener("click",doSave);
 $("sheetBg").addEventListener("click",e=>{ if(e.target===$("sheetBg")) closeReview(); });
 document.addEventListener("keydown",e=>{ if(e.key==="Escape"){ closeReview(); closeCal(); } });
+// Renew sign-in on any tap in the token's last 10 minutes. Google's popup needs a tap to open, so this can't run on a timer.
+document.addEventListener("click",e=>{
+  if(!mcp||refreshing||!Auth.exp||Date.now()<Auth.exp-600000||Date.now()<refreshPauseUntil||!navigator.onLine) return;
+  if(document.querySelector(".reauth")||(e.target.closest&&e.target.closest("#confirmSave"))) return;
+  refreshing=Auth.request()
+    .then(()=>{ if(document.querySelector(".reauth")){ $("banner").replaceChildren(); loadDay(fromSerial(state.serial)); } },()=>{ refreshPauseUntil=Date.now()+300000; })
+    .finally(()=>{ refreshing=null; });
+},true);
+window.addEventListener("online",()=>{ if(state.offline) loadDay(fromSerial(state.serial)); });
+if("serviceWorker" in navigator) navigator.serviceWorker.register("sw.js").catch(()=>{});
 
 const t0=todayParts(); state.serial=serialOf(t0.y,t0.m,t0.d);
 $("dayTitle").textContent=weekday(t0); $("jumpText").textContent=longDate(t0);
@@ -1230,7 +1273,7 @@ $("dayTitle").textContent=weekday(t0); $("jumpText").textContent=longDate(t0);
   applyPartnerLabels();
   const start=async()=>{ mcp=SheetsAPI; try{ await resolveTab(); }catch(e){ $("main").replaceChildren(); banner("err",errText(e),"Open Settings",showSetup); return; } loadDay(t0); loadPn().catch(()=>{}); };
   Auth.load();
-  if(Auth.valid()) return start();
+  if(Auth.valid()||!navigator.onLine) return start();
   showSignIn(start);
 })();
 })();
