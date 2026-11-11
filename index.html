@@ -1006,7 +1006,22 @@ async function healthRows(){
   const head=(vals[0]||[]).map(h=>String(h).toLowerCase());
   const iTs=head.findIndex(h=>/timestamp/.test(h)), iDate=head.findIndex(h=>/date/.test(h)&&!/timestamp/.test(h)), iSteps=head.findIndex(h=>/steps/.test(h)), iSleep=head.findIndex(h=>/sleep/.test(h));
   const byDay={};
-  vals.slice(1).forEach(r=>{ const s=parseShort(r[iDate]); if(s==null) return; byDay[s]={ts:iTs>=0?r[iTs]:"", steps:r[iSteps], sleep:r[iSleep]}; }); // later rows win
+  // Each morning response carries today's date, yesterday's final steps, and last night's sleep.
+  // Steps go on the previous day's row; sleep goes on the date sent. Responses before HEALTH_SINCE used an older format and are ignored.
+  const HEALTH_SINCE=new Date(2026,10,10,18,0,0).getTime();
+  const tsOf=t=>{ const m=String(t||"").match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?/); return m?new Date(+m[3],+m[1]-1,+m[2],+m[4],+m[5],+(m[6]||0)).getTime():0; };
+  const day=s=>byDay[s]||(byDay[s]={ts:"",steps:"",sleep:""});
+  vals.slice(1).forEach(r=>{
+    if(iTs<0 || tsOf(r[iTs])<HEALTH_SINCE) return;
+    const s=parseShort(r[iDate]); if(s==null) return;
+    // Which day do this row's steps belong to? Rows dated the day they were sent carry yesterday's steps (older format);
+    // rows dated the day before they were sent are already dated by their steps (current format). Sleep always goes on the morning after the steps' day.
+    const t=new Date(tsOf(r[iTs])), sentS=serialOf(t.getFullYear(),t.getMonth()+1,t.getDate());
+    const stepsDay = s===sentS ? s-1 : s===sentS-1 ? s : null; if(stepsDay==null) return;
+    const st=parseFloat(String(r[iSteps]||"").replace(/,/g,""));
+    if(!isNaN(st)){ const d=day(stepsDay); if(d.steps==="" || st>parseFloat(d.steps)){ d.steps=String(st); d.ts=r[iTs]; } }
+    if(parseFloat(String(r[iSleep]||"").replace(/,/g,""))>0){ const d=day(stepsDay+1); d.sleep=r[iSleep]; if(!d.ts) d.ts=r[iTs]; }
+  });
   healthCache=byDay; healthAt=Date.now(); return byDay;
 }
 async function applyHealthAuto(serial, token){
