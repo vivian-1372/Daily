@@ -200,6 +200,17 @@ td.a button.add{background:var(--accent);color:var(--accent-ink)}
 .pn-row .msg{flex:1;font-size:13px;color:var(--muted)}
 .pn-row .msg.err{color:var(--warn)}
 .pn-card.done{opacity:.55}
+.tr-big{font-size:28px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.tr-chart{width:100%;height:auto;display:block;margin-top:10px;touch-action:pan-y}
+.tr-axis{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);margin-top:4px}
+.up-row{display:flex;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:15px}
+.up-row:last-child{border-bottom:0}
+.up-row .up-act{flex:1;min-width:0}
+.up-dot{flex:none;width:8px;height:8px;border-radius:50%}
+.up-sum{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.plan.collapsed .up-body,.plan:not(.collapsed) .up-sum{display:none}
+.up-swap{margin-top:8px;padding-top:10px;border-top:1px solid var(--line)}
+.up-swap .ba{margin-top:6px}
 @media (prefers-reduced-motion: reduce){*{transition:none!important}.day::before{animation:none}}
 </style>
 </head>
@@ -208,6 +219,7 @@ td.a button.add{background:var(--accent);color:var(--accent-ink)}
   <div class="tabs" role="tablist">
     <button role="tab" id="tabDay" aria-selected="true">Day</button>
     <button role="tab" id="tabPn" aria-selected="false"><span class="pnLabel">Notes</span> <span class="count" id="pnCount"></span></button>
+    <button role="tab" id="tabTr" aria-selected="false">Trends</button>
   </div>
   <div id="dayView">
   <header class="day" id="day">
@@ -231,6 +243,10 @@ td.a button.add{background:var(--accent);color:var(--accent-ink)}
     <div class="pn-ctl" id="pnCtl"></div>
     <div id="pnBanner"></div>
     <div id="pnList"></div>
+  </div>
+  <div id="trView" hidden>
+    <div class="pn-top"><h1>Trends</h1><span class="hint" id="trSub"></span></div>
+    <div id="trBody"></div>
   </div>
 </div>
 
@@ -379,7 +395,7 @@ function showSetup(){
     try{ await navigator.clipboard.writeText(link); banner("ok","Setup link copied. Open it on your other device (AirDrop or a note to yourself) and it fills in these settings there. It doesn't give anyone access to your sheet."); }
     catch(e){ banner("info","Copy this setup link to your other device: "+link); }
   };
-  $("dayView").hidden=false; $("pnView").hidden=true; $("bar").hidden=true; $("week").replaceChildren();
+  $("dayView").hidden=false; $("pnView").hidden=true; $("trView").hidden=true; $("bar").hidden=true; $("week").replaceChildren();
   $("dayTitle").textContent="Settings";
   $("main").replaceChildren(el("section",{},[el("h2",{text:"Settings"}),
     el("div",{class:"hint",text:"Saved only on this device. Nothing here is in the app's code."}),
@@ -403,7 +419,7 @@ async function resolveTab(){
   try{ localStorage.setItem("daily:tabGid",JSON.stringify({sheet:SHEET_ID,tab:TAB,id:TAB_GID})); }catch(e){}
 }
 /* ================================================================================================ */
-const state = { y:0,m:0,d:0, serial:0, rowNum:null, row:[], rev:null, window:[], draft:null, busy:false, offline:false, snacks:[], snacksOpen:false, editSnacks:false };
+const state = { y:0,m:0,d:0, serial:0, rowNum:null, row:[], rev:null, window:[], upcoming:[], draft:null, busy:false, offline:false, snacks:[], snacksOpen:false, editSnacks:false };
 
 const $ = id => document.getElementById(id);
 const el = (tag, attrs, kids) => { const e=document.createElement(tag); if(attrs) for(const k in attrs){ const v=attrs[k]; if(k==="text") e.textContent=v; else if(k==="class") e.className=v; else if(k.startsWith("on")) e.addEventListener(k.slice(2),v); else if(v!==false && v!=null) e.setAttribute(k,v===true?"":v); } (kids||[]).forEach(c=>c!=null&&e.append(c)); return e; };
@@ -485,7 +501,7 @@ const ROWS_KEY="daily:rows";
 function cacheDay(){
   try{
     const all=JSON.parse(localStorage.getItem(ROWS_KEY)||"{}");
-    all[state.serial]={sheet:SHEET_ID,tab:TAB,rowNum:state.rowNum,row:state.row,window:state.window,at:Date.now()};
+    all[state.serial]={sheet:SHEET_ID,tab:TAB,rowNum:state.rowNum,row:state.row,window:state.window,upcoming:state.upcoming,at:Date.now()};
     const keep=Object.keys(all).sort((a,b)=>all[b].at-all[a].at).slice(0,20);
     localStorage.setItem(ROWS_KEY,JSON.stringify(Object.fromEntries(keep.map(k=>[k,all[k]]))));
   }catch(e){}
@@ -565,7 +581,7 @@ async function loadDay(p, opts){
     if(token!==loadToken) return;
     cached=(e&&e.code==="server_unavailable")?cachedDay(state.serial):null;
     if(!cached){ renderLoadError(e); return; }
-    state.rowNum=cached.rowNum; state.row=cached.row; state.window=cached.window; state.rev=null; state.offline=true;
+    state.rowNum=cached.rowNum; state.row=cached.row; state.window=cached.window; state.upcoming=cached.upcoming||[]; state.rev=null; state.offline=true;
   }
   state.draft=loadDraftLocal(state.serial);
   render();
@@ -575,13 +591,14 @@ async function loadDay(p, opts){
 }
 async function findRow(guess){
   if(guess<2) return false;
-  const lo=Math.max(2,guess-6), hi=guess+1;
+  const lo=Math.max(2,guess-6), hi=guess+5;
   const r=await readRange(TAB+"!A"+lo+":Q"+hi);
-  for(let n=lo;n<=hi;n++){
+  for(let n=lo;n<=guess+1;n++){
     const u=uevOf(r.rows[n]&&r.rows[n][1]);
     if(u && u.numberValue===state.serial){
       state.rowNum=n; state.row=padRow(r.rows[n]); state.rev=r.rev;
       state.window=[]; for(let k=n-6;k<=n;k++) if(k>=2) state.window.push({n:k,row:padRow(r.rows[k]||[])});
+      state.upcoming=[]; for(let k=1;k<=4;k++){ const b=uevOf(r.rows[n+k]&&r.rows[n+k][1]); if(!b||b.numberValue!==state.serial+k) break; state.upcoming.push({n:n+k,serial:state.serial+k,row:padRow(r.rows[n+k])}); }
       cacheDay();
       return true;
     }
@@ -670,6 +687,7 @@ function render(){
   renderWeek();
   const main=$("main"); main.replaceChildren();
 
+  const up=upcomingCard(); if(up) main.append(up);
   main.append(todoCard());
   main.append(trainingSection());
   main.append(bodySection());
@@ -775,16 +793,86 @@ function todoCard(){
     else return;
     reset.hidden=same(); draw();
   });
-  // Collapsed state is per device and shared across days.
-  const toggle=el("button",{class:"linkish",type:"button"});
+  const right=el("div",{style:"display:flex;align-items:center;gap:14px"},[reset]);
   const card=el("div",{class:"plan"},[
-    el("div",{class:"sh"},[el("div",{style:"display:flex;align-items:baseline;gap:8px"},[el("h2",{text:"To-do"}),count]),el("div",{style:"display:flex;align-items:center;gap:14px"},[reset,toggle])]),
+    el("div",{class:"sh"},[el("div",{style:"display:flex;align-items:baseline;gap:8px"},[el("h2",{text:"To-do"}),count]),right]),
     el("div",{class:"todo-body"},[list, el("div",{class:"plan-foot"},[st,el("span")])])]);
-  const setCollapsed=v=>{ card.classList.toggle("collapsed",v); toggle.textContent=v?"Show":"Hide"; toggle.setAttribute("aria-expanded",String(!v)); };
-  let collapsed=false; try{ collapsed=localStorage.getItem("daily:todoCollapsed")==="1"; }catch(e){}
-  setCollapsed(collapsed);
-  toggle.addEventListener("click",()=>{ collapsed=!collapsed; setCollapsed(collapsed); try{ localStorage.setItem("daily:todoCollapsed",collapsed?"1":"0"); }catch(e){} });
+  right.append(collapsible(card,"daily:todoCollapsed",false));
   return card;
+}
+// Hide/Show toggle for a .plan card. The state is per device and shared across days.
+function collapsible(card, key, collapsedByDefault){
+  const toggle=el("button",{class:"linkish",type:"button"});
+  let c=collapsedByDefault; try{ const v=localStorage.getItem(key); if(v!=null) c=v==="1"; }catch(e){}
+  const set=()=>{ card.classList.toggle("collapsed",c); toggle.textContent=c?"Show":"Hide"; toggle.setAttribute("aria-expanded",String(!c)); };
+  toggle.addEventListener("click",()=>{ c=!c; set(); try{ localStorage.setItem(key,c?"1":"0"); }catch(e){} });
+  set(); return toggle;
+}
+
+/* Coming up: the next days' planned activities. Swapping two writes only column C of both rows, after re-reading them. */
+const wdShort = s => { const pd=fromSerial(s); return new Date(pd.y,pd.m-1,pd.d).toLocaleDateString(undefined,{weekday:"short"}); };
+const actOf = x => isEmptyish(x.row[2]) ? "" : display(x.row[2]);
+// Formulas are never moved: their references would change meaning in another row.
+const swappable = x => !!actOf(x) && !("formulaValue" in (uevOf(x.row[2])||{}));
+function upcomingCard(){
+  const up=state.upcoming||[]; if(!up.length) return null;
+  const cur={n:state.rowNum,serial:state.serial,row:state.row};
+  const panel=el("div");
+  const list=el("ul",{class:"todo"},up.map(x=>{ const a=actOf(x); const dot=el("span",{class:"up-dot"}); dot.style.background=a?"var(--"+zoneOf(a)+")":"var(--line)";
+    return el("li",{class:"up-row"},[dot,el("span",{class:"up-act",text:wdShort(x.serial)+" · "+(a||"Nothing planned")}),
+      (swappable(x)&&!state.offline)?el("button",{class:"linkish",type:"button",text:"Swap","aria-label":"Swap "+wdShort(x.serial),onclick:()=>pickSwap(x)}):null]); }));
+  const pickSwap=x=>{
+    const others=[cur,...up].filter(y=>y!==x && swappable(y) && actOf(y)!==actOf(x));
+    panel.replaceChildren(el("div",{class:"up-swap"},[
+      el("div",{class:"sh",style:"margin-bottom:6px"},[el("strong",{text:"Swap "+wdShort(x.serial)+"’s "+actOf(x)+" with"}),el("button",{class:"linkish",type:"button",text:"Cancel",onclick:()=>panel.replaceChildren()})]),
+      others.length?el("div",{class:"supps",style:"margin:0"},others.map(y=>el("button",{class:"pill",type:"button",text:(y===cur?"This day":wdShort(y.serial))+" · "+actOf(y),onclick:()=>confirmSwap(x,y)}))):el("div",{class:"hint",text:"No other day here has a different activity to swap with."})]));
+  };
+  const confirmSwap=(x,y)=>{
+    const drafted=[x,y].find(z=>(z===cur?state.draft:loadDraftLocal(z.serial)).fields.activity!=null);
+    if(drafted){ panel.replaceChildren(el("div",{class:"up-swap hint err",text:wdShort(drafted.serial)+" has an unsaved activity edit. Save or clear it before swapping."})); return; }
+    const btn=el("button",{class:"btn",type:"button",text:"Swap",disabled:true}); const msg=el("div",{class:"hint"});
+    const cbs=[x,y].map(()=>el("input",{type:"checkbox"}));
+    cbs.forEach(cb=>cb.addEventListener("change",()=>{ btn.disabled=!cbs.every(c=>c.checked); }));
+    const line=(z,to,cb)=>el("div",{},[el("div",{class:"ba"},[el("b",{text:wdShort(z.serial)+" "+fmtShort(fromSerial(z.serial))+": "}),el("span",{text:actOf(z)+" → "+to})]),
+      el("label",{class:"confirm"},[cb,el("span",{text:"Yes, replace "+wdShort(z.serial)+"’s activity in the sheet."})])]);
+    btn.addEventListener("click",async()=>{
+      btn.disabled=true; msg.className="hint"; msg.textContent="Swapping…";
+      const r=await doSwap(x,y);
+      if(r.ok){ for(const k in calCache) delete calCache[k]; staleTr(); banner("ok","Swapped "+wdShort(x.serial)+" and "+wdShort(y.serial)+"."); return loadDay(fromSerial(state.serial),{keepBanner:true}); }
+      if(r.reload){ banner("err",r.msg); return loadDay(fromSerial(state.serial),{keepBanner:true}); }
+      msg.className="hint err"; msg.textContent=r.msg; btn.disabled=false;
+    });
+    panel.replaceChildren(el("div",{class:"up-swap"},[el("strong",{text:"Check the swap"}),line(x,actOf(y),cbs[0]),line(y,actOf(x),cbs[1]),
+      el("div",{class:"sheet-actions"},[el("button",{class:"btn ghost",type:"button",text:"Cancel",onclick:()=>panel.replaceChildren()}),btn]),msg]));
+  };
+  const card=el("div",{class:"plan"},[
+    el("div",{class:"sh"},[el("h2",{text:"Coming up"}),el("span",{class:"saved up-sum",text:up.filter(actOf).map(x=>wdShort(x.serial)+" "+actOf(x)).join(" · ")})]),
+    el("div",{class:"up-body"},[list,panel])]);
+  card.firstChild.append(collapsible(card,"daily:upCollapsed",true));
+  return card;
+}
+async function doSwap(x,y){
+  const want=[{n:x.n,serial:x.serial,from:uevOf(x.row[2]),to:uevOf(y.row[2])},{n:y.n,serial:y.serial,from:uevOf(y.row[2]),to:uevOf(x.row[2])}];
+  const lo=Math.min(x.n,y.n), hi=Math.max(x.n,y.n);
+  const requests=want.map(w=>({updateCells:{start:{sheetId:TAB_GID,rowIndex:w.n-1,columnIndex:2},rows:[{values:[{userEnteredValue:w.to}]}],fields:"userEnteredValue"}}));
+  const read=async()=>{ const r=await readRange(TAB+"!A"+lo+":Q"+hi); return {rev:r.rev,rows:want.map(w=>padRow(r.rows[w.n]))}; };
+  const datesOk=rs=>want.every((w,i)=>{ const b=uevOf(rs[i][1]); return b&&b.numberValue===w.serial; });
+  const all=(rs,k)=>want.every((w,i)=>sameUEV(uevOf(rs[i][2]),w[k]));
+  let werr=null;
+  try{
+    let r=await read();
+    // Second pass covers a write rejected only because something elsewhere in the spreadsheet changed.
+    for(let attempt=0;attempt<2;attempt++){
+      if(!datesOk(r.rows)) return {ok:false,reload:true,msg:"Nothing was swapped. Rows moved in the sheet, so the page reloaded."};
+      if(all(r.rows,"to")) return {ok:true};
+      if(!all(r.rows,"from")) return {ok:false,reload:true,msg:"Nothing was swapped. One of these days was edited in the sheet, so the page reloaded."};
+      werr=null; try{ await writeRequests(requests,r.rev); }catch(e){ werr=e; }
+      r=await read();
+    }
+    if(all(r.rows,"to")) return {ok:true};
+    if(all(r.rows,"from")) return {ok:false,msg:"Nothing was swapped. "+(werr&&werr.code&&werr.code!=="tool_error"?errText(werr):"The sheet was being edited at the same moment. Try again.")};
+    return {ok:false,reload:true,msg:"Couldn't confirm the swap. Check rows "+lo+" to "+hi+" in the sheet."};
+  }catch(e){ return {ok:false,msg:"Not swapped. "+errText(e)}; }
 }
 
 /* ---------- Apple Health (via iPhone Shortcut → clipboard) ---------- */
@@ -999,7 +1087,7 @@ async function doSave(){
   const success=(row,rev)=>{
     state.busy=false; clearSavedParts(toWrite); state.row=row; state.rev=rev; delete calCache[state.y+"-"+state.m];
     const w=state.window.find(x=>x.n===rowNum); if(w) w.row=row;
-    cacheDay();
+    cacheDay(); staleTr();
     render(); loadMeals(serial);
     banner("ok","Saved "+toWrite.length+" change"+(toWrite.length>1?"s":"")+" to row "+rowNum+".");
   };
@@ -1126,8 +1214,8 @@ async function loadPn(force){
 }
 function updatePnCount(){ const n=pnItems?pnItems.filter(x=>!x.saved).length:null; $("pnCount").textContent=n==null?"":"("+n+")"; $("pnSub").textContent=n==null?"":(n?n+" days to go":"All caught up"); }
 async function showPn(){
-  $("tabDay").setAttribute("aria-selected","false"); $("tabPn").setAttribute("aria-selected","true");
-  $("dayView").hidden=true; $("bar").hidden=true; $("pnView").hidden=false;
+  $("tabDay").setAttribute("aria-selected","false"); $("tabPn").setAttribute("aria-selected","true"); $("tabTr").setAttribute("aria-selected","false");
+  $("dayView").hidden=true; $("bar").hidden=true; $("trView").hidden=true; $("pnView").hidden=false;
   const list=$("pnList");
   if(!pnItems){ list.replaceChildren(el("div",{class:"skel"}),el("div",{class:"skel"})); }
   try{ await loadPn(); }catch(e){ list.replaceChildren(); $("pnBanner").replaceChildren(el("div",{class:"banner err",text:errText(e)})); return; }
@@ -1135,8 +1223,8 @@ async function showPn(){
   if(!list.querySelector(".pn-card")){ list.replaceChildren(); pnShown=0; buildPnSeq(); morePn(); }
 }
 function showDay(){
-  $("tabDay").setAttribute("aria-selected","true"); $("tabPn").setAttribute("aria-selected","false");
-  $("pnView").hidden=true; $("dayView").hidden=false; $("bar").hidden=false;
+  $("tabDay").setAttribute("aria-selected","true"); $("tabPn").setAttribute("aria-selected","false"); $("tabTr").setAttribute("aria-selected","false");
+  $("pnView").hidden=true; $("trView").hidden=true; $("dayView").hidden=false; $("bar").hidden=false;
   if(pnDirty && state.serial){ pnDirty=false; loadDay(fromSerial(state.serial)); }
 }
 function morePn(){
@@ -1197,6 +1285,83 @@ async function savePnCell(it, text){
   return {ok:false,taken:true,msg:"Not saved. Someone just wrote a partner note here: “"+display(after[COL.pn]).slice(0,80)+"”"};
 }
 
+/* ---------- Trends tab (read-only) ---------- */
+const TR_METRICS=[
+  {key:"sleep",col:4,label:"Sleep",fmt:v=>v.toFixed(1)+" h"},
+  {key:"steps",col:5,label:"Steps",fmt:v=>Math.round(v).toLocaleString()},
+  {key:"weight",col:9,label:"Weight",fmt:v=>v.toFixed(1)},
+  {key:"protein",col:11,label:"Protein",fmt:v=>Math.round(v)+" g"}
+];
+const TR_RANGES=[{key:"1m",label:"1 mo",days:30,avg:7},{key:"3m",label:"3 mo",days:91,avg:7},{key:"1y",label:"1 yr",days:365,avg:30},{key:"all",label:"All",days:null,avg:30}];
+let trData=null, trAt=0, trGen=0, trShown=null;
+function staleTr(){ trData=null; trGen++; }
+let trPick=(()=>{ const d={metric:"sleep",range:"3m"}; try{ return Object.assign(d,JSON.parse(localStorage.getItem("daily:trends")||"{}")); }catch(e){ return d; } })();
+async function loadTr(){
+  if(trData && Date.now()-trAt<300000) return trData;
+  const gen=trGen;
+  const t=todayParts(), todayS=serialOf(t.y,t.m,t.d);
+  const res=await mcp.callTool(SERVER,"get_values",{spreadsheetId:SHEET_ID, range:TAB+"!B2:L"+(todayS-45067)},{cache:false});
+  const vals=(parsePayload(res)||{}).values||[];
+  const byDay={}; let first=todayS;
+  vals.forEach(r=>{
+    const s=parseShort(r[0]); if(s==null||s>todayS) return;
+    const o={}; for(const m of TR_METRICS){ const v=parseFloat(String(r[m.col-1]==null?"":r[m.col-1]).replace(/,/g,"")); if(v>0) o[m.key]=v; }
+    byDay[s]=o; if(s<first) first=s;
+  });
+  const data={byDay,first,today:todayS};
+  if(gen===trGen){ trData=data; trAt=Date.now(); }
+  return data;
+}
+async function showTr(){
+  $("tabDay").setAttribute("aria-selected","false"); $("tabPn").setAttribute("aria-selected","false"); $("tabTr").setAttribute("aria-selected","true");
+  $("dayView").hidden=true; $("pnView").hidden=true; $("bar").hidden=true; $("trView").hidden=false;
+  const body=$("trBody");
+  if(!trData) body.replaceChildren(el("div",{class:"skel"}));
+  let data; try{ data=await loadTr(); }catch(e){ body.replaceChildren(el("div",{class:"banner err",text:errText(e)})); return; }
+  drawTr(data);
+}
+function drawTr(data){
+  data=data||trShown; trShown=data;
+  const m=TR_METRICS.find(x=>x.key===trPick.metric)||TR_METRICS[0], rg=TR_RANGES.find(x=>x.key===trPick.range)||TR_RANGES[1];
+  const {byDay,today}=data, start=rg.days?today-rg.days+1:data.first;
+  const val=s=>(byDay[s]||{})[m.key];
+  const days=[], avg=[];
+  for(let s=start;s<=today;s++){ days.push(val(s)==null?null:val(s)); let sum=0,n=0; for(let k=s-rg.avg+1;k<=s;k++){ const x=val(k); if(x!=null){ sum+=x; n++; } } avg.push(n?sum/n:null); }
+  const pick=(key,v)=>el("button",{class:"pill",type:"button","aria-pressed":String(trPick[key]===v.key),text:v.label,onclick:()=>{ trPick[key]=v.key; try{ localStorage.setItem("daily:trends",JSON.stringify(trPick)); }catch(e){} drawTr(); }});
+  const logged=days.filter(v=>v!=null);
+  $("trSub").textContent=logged.length+" of "+days.length+" days logged";
+  const card=el("section",{});
+  if(!logged.length){ card.append(el("div",{class:"hint",text:"No "+m.label.toLowerCase()+" logged in this range."})); }
+  else{
+    const W=320, H=150, P=6, N=days.length;
+    let lo=Math.min(...logged), hi=Math.max(...logged); if(hi===lo){ hi+=1; lo-=1; } const pad=(hi-lo)*.08; lo-=pad; hi+=pad;
+    const x=i=>N>1?i/(N-1)*W:W/2, y=v=>P+(1-(v-lo)/(hi-lo))*(H-2*P);
+    const ns="http://www.w3.org/2000/svg", svgEl=(t,a)=>{ const e=document.createElementNS(ns,t); for(const k in a) e.setAttribute(k,a[k]); return e; };
+    const svg=svgEl("svg",{viewBox:"0 0 "+W+" "+H,class:"tr-chart",role:"img","aria-label":m.label+", "+rg.avg+"-day average"});
+    [[hi-pad,"top"],[lo+pad,"bottom"]].forEach(([v])=>{ svg.append(svgEl("line",{x1:0,x2:W,y1:y(v),y2:y(v),style:"stroke:var(--line);stroke-width:1"})); const t=svgEl("text",{x:2,y:y(v)-3,style:"fill:var(--muted);font-size:10px"}); t.textContent=m.fmt(v); svg.append(t); });
+    days.forEach((v,i)=>{ if(v!=null) svg.append(svgEl("circle",{cx:x(i),cy:y(v),r:N>400?1:1.6,style:"fill:var(--muted);opacity:.45"})); });
+    let d="", pen=false; avg.forEach((v,i)=>{ if(v==null){ pen=false; return; } d+=(pen?"L":"M")+x(i).toFixed(1)+" "+y(v).toFixed(1); pen=true; });
+    svg.append(svgEl("path",{d,style:"fill:none;stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round"}));
+    const mark=svgEl("line",{y1:0,y2:H,style:"stroke:var(--ink);stroke-width:1;opacity:0"}); svg.append(mark);
+    let li=avg.length-1; while(li>0&&avg[li]==null) li--; let fi=0; while(fi<li&&avg[fi]==null) fi++;
+    const diff=avg[li]-avg[fi];
+    const read=el("div",{class:"hint"}); const idle="Tap the chart to see a day.";
+    read.textContent=idle;
+    const onPt=e=>{ const r=svg.getBoundingClientRect(); const i=Math.max(0,Math.min(N-1,Math.round((e.clientX-r.left)/r.width*(N-1)))); mark.setAttribute("x1",x(i)); mark.setAttribute("x2",x(i)); mark.style.opacity=".35";
+      read.textContent=longDate(fromSerial(start+i))+": "+(days[i]!=null?m.fmt(days[i]):"nothing logged")+(avg[i]!=null?", "+rg.avg+"-day avg "+m.fmt(avg[i]):""); };
+    svg.addEventListener("pointerdown",onPt); svg.addEventListener("pointermove",e=>{ if(e.buttons||e.pointerType==="mouse") onPt(e); });
+    const ticks=[0,1,2,3].map(k=>{ const pd=fromSerial(start+Math.round(k/3*(N-1))); return new Date(pd.y,pd.m-1,pd.d).toLocaleDateString(undefined,rg.days&&rg.days<=91?{month:"short",day:"numeric"}:{month:"short",year:"2-digit"}); });
+    card.append(
+      el("div",{class:"tr-big",text:m.fmt(avg[li])}),
+      el("div",{class:"hint",text:rg.avg+"-day average · "+(diff>=0?"+":"−")+m.fmt(Math.abs(diff))+" since "+shortDate(fromSerial(start+fi))}),
+      svg, el("div",{class:"tr-axis"},ticks.map(t=>el("span",{text:t}))), read);
+  }
+  $("trBody").replaceChildren(
+    el("div",{class:"supps",style:"margin:4px 2px 0"},TR_METRICS.map(v=>pick("metric",v))),
+    card,
+    el("div",{class:"supps",style:"margin:10px 2px 0"},TR_RANGES.map(v=>pick("range",v))));
+}
+
 /* ---------- calendar ---------- */
 const calCache={}; let calY=0, calM=0;
 async function monthInfo(y,m){
@@ -1250,6 +1415,7 @@ $("calBg").addEventListener("click",e=>{ if(e.target===$("calBg")) closeCal(); }
 $("reviewBtn").addEventListener("click",openReview);
 $("tabDay").addEventListener("click",showDay);
 $("tabPn").addEventListener("click",()=>{ if(mcp) showPn(); });
+$("tabTr").addEventListener("click",()=>{ if(mcp) showTr(); });
 $("cancelSave").addEventListener("click",closeReview);
 $("confirmSave").addEventListener("click",doSave);
 $("sheetBg").addEventListener("click",e=>{ if(e.target===$("sheetBg")) closeReview(); });
