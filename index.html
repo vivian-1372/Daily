@@ -89,6 +89,7 @@ h2{font-size:15px;font-weight:700;margin:0}
 .todo li.done input{text-decoration:line-through;color:var(--muted)}
 .todo .del{flex:none;border:0;background:none;color:var(--muted);font-size:16px;padding:2px 4px}
 .todo .new input::placeholder{color:var(--muted)}
+.todo .from{flex:none;font-size:12px;color:var(--muted);white-space:nowrap}
 .plan-foot{display:flex;justify-content:space-between;align-items:center;margin-top:6px;min-height:18px}
 .plan.collapsed .todo-body,.plan.collapsed .todo-reset,.plan:not(.collapsed) .todo-count{display:none}
 .plan.collapsed .sh{margin:0}
@@ -316,9 +317,9 @@ const Auth = {
   load(){ try{ const t=JSON.parse(localStorage.getItem("daily:token")||"null"); if(t&&t.exp>Date.now()+60000){ this.token=t.token; this.exp=t.exp; } }catch(e){} },
   valid(){ return (this.token && Date.now() < this.exp-60000) ? this.token : null; },
   clear(){ this.token=null; this.exp=0; try{ localStorage.removeItem("daily:token"); }catch(e){} },
-  async ready(){ for(let i=0;i<100 && !(window.google&&google.accounts&&google.accounts.oauth2);i++) await new Promise(r=>setTimeout(r,100)); if(!(window.google&&google.accounts&&google.accounts.oauth2)) throw new Error("Google sign-in didn't load. Check your connection and reload."); },
-  async request(){
-    await this.ready();
+  // No await before requestAccessToken: Safari only opens the popup while the tap is still being handled.
+  request(){
+    if(!(window.google&&google.accounts&&google.accounts.oauth2)) return Promise.reject(new Error("Google sign-in is still loading. Wait a moment and tap again."));
     if(!this.client) this.client=google.accounts.oauth2.initTokenClient({client_id:getClientId(), scope:SCOPE, callback:()=>{}});
     return new Promise((res,rej)=>{
       this.client.callback=r=>{ if(r.error){ rej(new Error(r.error_description||r.error)); return; } this.token=r.access_token; this.exp=Date.now()+(+r.expires_in||3600)*1000; try{ localStorage.setItem("daily:token",JSON.stringify({token:this.token,exp:this.exp})); }catch(e){} res(this.token); };
@@ -758,20 +759,22 @@ let todoTimer=null;
 function todoCard(){
   const row=state.row, serial=state.serial;
   const sheetNote=isEmptyish(row[COL.note])?"":display(row[COL.note]);
-  const fromSheet=()=>splitItems(sheetNote).map(t=>({t,done:false}));
+  const noteItems=splitItems(sheetNote).map(t=>({t,done:false}));
+  let base=noteItems;
+  const fromSheet=()=>base.map(x=>({...x}));
   let items=fromSheet();
   const list=el("ul",{class:"todo"}); const st=el("span",{class:"saved"});
   const reset=el("button",{class:"linkish todo-reset",type:"button",text:"Reset to sheet's note"});
   const count=el("span",{class:"saved todo-count"});
   const tally=()=>{ const live=items.filter(i=>i.t.trim()); count.textContent=live.length?live.filter(i=>i.done).length+" of "+live.length+" done":""; };
-  const same=()=>items.length===splitItems(sheetNote).length && items.every((it,i)=>!it.done && it.t===splitItems(sheetNote)[i]);
+  const same=()=>items.length===base.length && items.every((it,i)=>!it.done && it.t===base[i].t);
   const persist=()=>{ reset.hidden=same(); st.textContent="Saving…"; clearTimeout(todoTimer); todoTimer=setTimeout(async()=>{ try{ await storeSet("todo-"+serial,{items:items.filter(i=>i.t.trim())}); if(state.serial===serial) st.textContent="Saved"; }catch(e){ st.textContent="Saved on this device"; } },500); };
   const draw=(focusIdx)=>{
     list.replaceChildren();
     items.forEach((it,i)=>{
       const tick=el("button",{class:"tick",type:"button",role:"checkbox","aria-checked":String(it.done),"aria-label":"Done: "+it.t,text:"✓"});
       const inp=el("input",{type:"text","aria-label":"To-do item"}); inp.value=it.t;
-      const li=el("li",{class:it.done?"done":""},[tick,inp,el("button",{class:"del",type:"button","aria-label":"Delete "+it.t,text:"✕",onclick:()=>{ items.splice(i,1); draw(); persist(); }})]);
+      const li=el("li",{class:it.done?"done":""},[tick,inp,it.from?el("span",{class:"from",text:"from "+shortDate(fromSerial(it.from))}):null,el("button",{class:"del",type:"button","aria-label":"Delete "+it.t,text:"✕",onclick:()=>{ items.splice(i,1); draw(); persist(); }})]);
       tick.addEventListener("click",()=>{ it.done=!it.done; tick.setAttribute("aria-checked",String(it.done)); li.classList.toggle("done",it.done); tally(); persist(); });
       inp.addEventListener("input",()=>{ it.t=inp.value; persist(); });
       inp.addEventListener("blur",()=>{ if(!it.t.trim()){ items.splice(items.indexOf(it),1); draw(); persist(); } });
@@ -786,10 +789,17 @@ function todoCard(){
   };
   reset.addEventListener("click",()=>{ items=fromSheet(); draw(); persist(); });
   reset.hidden=true; draw();
-  Promise.all([storeGet("todo-"+serial),storeGet("scratch-"+serial)]).then(([d,old])=>{
+  // Unfinished items carry over from the most recent earlier day (within a week) whose list was used.
+  // This day's list only stops picking up changes once it's edited and saved itself.
+  const carrySource=async()=>{ for(let k=1;k<=7;k++){ const p=await storeGet("todo-"+(serial-k)); if(p&&Array.isArray(p.items)) return {s:serial-k,items:p.items}; } return null; };
+  Promise.all([storeGet("todo-"+serial),storeGet("scratch-"+serial),carrySource()]).then(([d,old,src])=>{
     if(state.serial!==serial||list.contains(document.activeElement)) return;
-    if(d&&Array.isArray(d.items)) items=d.items.map(x=>({t:String(x.t||""),done:!!x.done}));
+    const inNote=new Set(noteItems.map(x=>x.t.toLowerCase()));
+    const carried=src?src.items.filter(x=>!x.done&&String(x.t||"").trim()&&!inNote.has(String(x.t).trim().toLowerCase())).map(x=>({t:String(x.t).trim(),done:false,from:x.from||src.s})):[];
+    base=[...carried,...noteItems];
+    if(d&&Array.isArray(d.items)) items=d.items.map(x=>({t:String(x.t||""),done:!!x.done,from:x.from||null}));
     else if(old&&typeof old.text==="string") items=splitItems(old.text).map(t=>({t,done:false}));
+    else if(carried.length) items=fromSheet();
     else return;
     reset.hidden=same(); draw();
   });
